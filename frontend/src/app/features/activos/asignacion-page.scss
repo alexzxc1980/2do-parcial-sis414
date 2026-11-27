@@ -4,7 +4,7 @@
 }
 
 .window {
-  max-width: 700px;
+  max-width: 1150px;
   margin: 0 auto;
   border: 1px solid #7299c2;
   background: #f8fbff;
@@ -48,3 +48,16 @@ dd { margin: 0; color: #172e45; font-size: 15px; overflow-wrap: anywhere; }
   button { width: 100%; }
   dl div { grid-template-columns: 1fr; gap: 6px; }
 }
+
+.table-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 12px; text-align: left; border-bottom: 1px solid #d5e2ef; }
+th { background: #f0f6fc; color: #23466b; }
+td button { padding: 8px 12px; white-space: nowrap; }
+.amount { text-align: right; white-space: nowrap; }
+.selected { background: #e8f3ff; }
+.ficha dl { display: grid; grid-template-columns: 1fr 1fr; }
+.ficha dl div { border-bottom: 1px solid #e0e9f3; border-top: 0; grid-template-columns: minmax(120px, 42%) 1fr; }
+h3 { margin: 0; padding: 12px 16px; font-size: 15px; color: #244c72; background: #f0f6fc; }
+.badge { float: right; font-size: 12px; padding: 4px 8px; border-radius: 3px; background: #fff3cf; color: #795400; }
+@media (max-width: 750px) { .ficha dl { grid-template-columns: 1fr; } }

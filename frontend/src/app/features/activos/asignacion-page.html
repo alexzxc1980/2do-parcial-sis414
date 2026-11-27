@@ -1,9 +1,8 @@
 <section class="window" aria-labelledby="titulo">
-  <div class="titlebar">ACTIVOS FIJOS</div>
+  <div class="titlebar">ADMINISTRACIÓN DE ACTIVOS FIJOS</div>
   <div class="body">
-    <h1 id="titulo">Consultar asignación de un activo</h1>
-    <p class="intro">Busca un activo por su código para conocer su oficina y responsable.</p>
-
+    <h1 id="titulo">Activos fijos</h1>
+    <p class="intro">Consulta los activos registrados y abre su ficha para revisar los datos y la asignación.</p>
     <form [formGroup]="form" (ngSubmit)="buscar()" [attr.aria-busy]="buscando()" novalidate>
       <label for="codigo">Código del activo</label>
       <div class="search">
@@ -11,30 +10,46 @@
           placeholder="Ej.: PROY-001" autocomplete="off" spellcheck="false"
           [readOnly]="buscando()" [attr.aria-invalid]="codigo.touched && codigo.invalid"
           aria-describedby="mensaje" />
-        <button type="submit" [disabled]="buscando()">{{ buscando() ? 'Buscando…' : 'Buscar' }}</button>
+        <button type="submit" [disabled]="buscando()">Buscar</button>
+        <button type="button" (click)="listar()" [disabled]="buscando()">Actualizar lista</button>
       </div>
     </form>
-
     <div id="mensaje" aria-live="polite">
-      @if (buscando()) {
-        <p class="status">Consultando el activo…</p>
-      } @else if (error(); as mensaje) {
-        <p class="error" role="alert">{{ mensaje }}</p>
-      }
+      @if (buscando()) { <p class="status">Consultando activos…</p> }
+      @if (error(); as mensaje) { <p class="error" role="alert">{{ mensaje }}</p> }
     </div>
-
+    <section class="result" aria-labelledby="listado">
+      <h2 id="listado">Activos registrados · {{ activos().length }}</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Código</th><th>Descripción</th><th>Responsable</th><th>Estado</th><th>Costo inicial (Bs)</th><th>Ficha</th></tr></thead>
+          <tbody>
+            @for (activo of activos(); track activo.codigo) {
+              <tr [class.selected]="asignacion()?.codigo === activo.codigo">
+                <td>{{ activo.codigo }}</td><td>{{ activo.descripcion }}</td>
+                <td>{{ activo.responsable || 'Sin registrar' }}</td><td>{{ activo.estadoRegistro || 'Sin registrar' }}</td>
+                <td class="amount">{{ activo.costoInicial === null ? 'Sin registrar' : (activo.costoInicial | number:'1.2-2') }}</td>
+                <td><button type="button" (click)="ver(activo.codigo)" [disabled]="buscando()" [attr.aria-label]="'Ver ficha de ' + activo.codigo">Ver ficha</button></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6">{{ buscando() ? 'Cargando…' : 'No hay activos para mostrar.' }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
     @if (asignacion(); as activo) {
-      <section class="result" aria-labelledby="resultado" aria-live="polite">
-        <h2 id="resultado">Asignación del activo</h2>
-        <dl>
-          <div><dt>Código</dt><dd>{{ activo.codigo }}</dd></div>
-          <div><dt>Descripción</dt><dd>{{ activo.descripcion }}</dd></div>
-          <div><dt>Oficina</dt><dd>{{ activo.oficina }}</dd></div>
-          <div><dt>Responsable</dt><dd>{{ activo.responsable }}</dd></div>
-        </dl>
+      <section class="result ficha" aria-labelledby="resultado" aria-live="polite">
+        <h2 id="resultado">Ficha de {{ activo.codigo }} <span class="badge">{{ activo.estadoRegistro }}</span></h2>
+        @for (seccion of secciones; track seccion.titulo) {
+          <h3>{{ seccion.titulo }}</h3>
+          <dl>
+            @for (campo of seccion.campos; track campo[0]) {
+              <div><dt>{{ campo[1] }}</dt><dd>{{ valor(activo, campo[0]) }}</dd></div>
+            }
+          </dl>
+        }
       </section>
-    } @else if (!buscando() && !error()) {
-      <p class="empty">Ingresa el código y pulsa Buscar para ver la asignación.</p>
     }
   </div>
 </section>
