@@ -1,0 +1,236 @@
+[
+  {
+    "codigo": 1,
+    "nombre": "EDIFICACIONES",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 2,
+    "nombre": "MUEBLES Y ENSERES DE OFICINA",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 3,
+    "nombre": "MAQUINARIA EN GENERAL",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 7,
+    "nombre": "BARCOS Y LANCHAS EN GENERAL",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 8,
+    "nombre": "VEHICULOS AUTOMOTORES",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 9,
+    "nombre": "AVIONES",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 10,
+    "nombre": "MAQUINARIA PARA LA CONSTRUCCION",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 11,
+    "nombre": "MAQUINARIA AGRICOLA",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 12,
+    "nombre": "ANIMALES DE TRABAJO",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 13,
+    "nombre": "HERRAMIENTAS EN GENERAL",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 14,
+    "nombre": "REPRODUCTORES Y HEMBRAS DE PEDIGREE",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 15,
+    "nombre": "EQUIPOS DE COMPUTACION",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 16,
+    "nombre": "CANALES DE REGADIO Y POZOS",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 17,
+    "nombre": "ESTANQUES, BA¥ADEROS Y ABREVADEROS",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 18,
+    "nombre": "ALAMBRADOS, TRANQUERAS Y VALLAS",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 19,
+    "nombre": "VIVIENDAS PARA EL PERSONAL",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 20,
+    "nombre": "MUEBLES Y ENSERES EN VIVIENDAS DE PERSONAL",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 21,
+    "nombre": "SILOS, ALMACENES Y GALPONES",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 22,
+    "nombre": "TINGLADOS Y COBERTIZOS DE MADERA",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 23,
+    "nombre": "TINGLADOS Y COBERTIZOS DE METAL",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 24,
+    "nombre": "INSTALACION DE ELECTRIFICACION Y TELEFONIA RURAL",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 25,
+    "nombre": "CAMINOS INTERIORES",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 26,
+    "nombre": "CA¥A DE AZUCAR",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 27,
+    "nombre": "VIDES",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 28,
+    "nombre": "FRUTALES",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 30,
+    "nombre": "POZOS PETROLEROS",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 29,
+    "nombre": "LINEAS DE RECOLECCION DE LA INDUSTRIA PETROLERA",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 31,
+    "nombre": "EQUIPOS DE CAMPO DE LA INDUSTRIA PETROLERA",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 32,
+    "nombre": "PLANTA DE PROCESAMIENTO DE LA INDUSTRIA PETROLERA",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 33,
+    "nombre": "DUCTOS DE LA INDUSTRIA PETROLERA",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 4,
+    "nombre": "EQUIPO MEDICO Y DE LABORATORIO",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 5,
+    "nombre": "EQUIPO DE COMUNICACIONES",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 6,
+    "nombre": "EQUIPO EDUCACIONAL Y RECREATIVO",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 34,
+    "nombre": "TERRENOS",
+    "depreciar": false,
+    "actualizar": true
+  },
+  {
+    "codigo": 36,
+    "nombre": "OTROS ACTIVOS FIJOS",
+    "depreciar": false,
+    "actualizar": false
+  },
+  {
+    "codigo": 37,
+    "nombre": "ACTIVOS INTANGIBLES",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 38,
+    "nombre": "EQUIPO E INSTALACIONES",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 39,
+    "nombre": "OTRAS PLANTACIONES",
+    "depreciar": true,
+    "actualizar": true
+  },
+  {
+    "codigo": 40,
+    "nombre": "ACTIVOS MUSEOLOGICOS Y CULTURALES",
+    "depreciar": false,
+    "actualizar": false
+  }
+]

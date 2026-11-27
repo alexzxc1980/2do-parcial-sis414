@@ -37,7 +37,7 @@ ALTER TABLE segundo_parcial.activo
     ADD COLUMN IF NOT EXISTS numero_convenio VARCHAR(10),
     ADD COLUMN IF NOT EXISTS entidad VARCHAR(4),
     ADD COLUMN IF NOT EXISTS unidad VARCHAR(5),
-    ADD COLUMN IF NOT EXISTS origen_vsiaf BOOLEAN NOT NULL DEFAULT FALSE;
+    ADD COLUMN IF NOT EXISTS revision BIGINT NOT NULL DEFAULT 1;
 
 ALTER TABLE segundo_parcial.activo ALTER COLUMN oficina_id DROP NOT NULL;
 ALTER TABLE segundo_parcial.activo ALTER COLUMN responsable_id DROP NOT NULL;

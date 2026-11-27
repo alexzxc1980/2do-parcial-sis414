@@ -10,5 +10,5 @@ public record Asignacion(
         String observaciones, BigDecimal costoInicial, BigDecimal depreciacionInicial,
         BigDecimal vidaUtil, Boolean depreciar, Boolean actualizar,
         String rube, String organismoFinanciador, String numeroConvenio,
-        String entidad, String unidad) {
+        String entidad, String unidad, Integer oficinaId, Integer responsableId, Long revision) {
 }

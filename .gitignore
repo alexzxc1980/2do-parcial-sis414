@@ -5,3 +5,5 @@
 /frontend/.angular/
 /frontend/dist/
 /src/main/resources/static/
+__pycache__/
+*.pyc
