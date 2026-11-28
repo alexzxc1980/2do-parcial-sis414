@@ -30,7 +30,7 @@ class Activos:
         self.siguiente = 0
         self.cerrado = False
         raiz.title('Activos fijos - SIS-414')
-        raiz.geometry('1100x570')
+        raiz.geometry('1170x570')
         raiz.minsize(950, 450)
         raiz.configure(background='#f3f5f8')
         estilo = ttk.Style()
@@ -53,8 +53,8 @@ class Activos:
         tabla = ttk.Frame(marco)
         tabla.pack(fill='both', expand=True)
         self.lista = ttk.Treeview(tabla, columns=self.columnas, show='headings', selectmode='browse', height=9)
-        titulos = ['Código', 'Descripción', 'Costo (Bs)', 'Vida útil (años)', 'Fecha', 'Estado', 'Responsable']
-        anchos = [100, 240, 110, 110, 110, 90, 175]
+        titulos = ['Código', 'Descripción', 'Costo (Bs)', 'Vida útil (años)', 'Fecha de adquisición', 'Estado', 'Responsable']
+        anchos = [100, 240, 110, 110, 165, 90, 175]
         for campo, titulo, ancho in zip(self.columnas, titulos, anchos):
             self.lista.heading(campo, text=titulo)
             self.lista.column(campo, width=ancho, minwidth=80, stretch=campo == 'descripcion', anchor='w')
@@ -163,7 +163,7 @@ class Activos:
         contenedor.pack(fill='both', expand=True)
         ttk.Label(contenedor, text=dialogo.title(), font=('Segoe UI', 18, 'bold')).grid(row=0, column=0, columnspan=2, sticky='w', pady=(0, 18))
         variables = {}
-        nombres = ['Código', 'Descripción', 'Costo (Bs)', 'Vida útil (años)', 'Fecha (día/mes/año)', 'Estado', 'Responsable']
+        nombres = ['Código', 'Descripción', 'Costo (Bs)', 'Vida útil (años)', 'Fecha de adquisición (día/mes/año)', 'Estado', 'Responsable']
         for fila, (campo, nombre) in enumerate(zip(self.columnas, nombres), 1):
             ttk.Label(contenedor, text=nombre, font=('Segoe UI', 11)).grid(row=fila, column=0, sticky='w', padx=(0, 18), pady=7)
             valor = base[campo]

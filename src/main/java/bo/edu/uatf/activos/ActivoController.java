@@ -55,11 +55,11 @@ public class ActivoController {
     }
 
     @GetMapping
-    @ApiResponse(responseCode = "200", description = "Activos vigentes; detalleDbf=true devuelve las columnas originales de FoxPro",
-            content = @Content(array = @ArraySchema(schema = @Schema(implementation = ResumenActivo.class))))
-    @Operation(summary = "Consultar activos: resumen o columnas de actual.DBF",
-            description = "Muestra código, descripción, costo, vida útil, fecha, estado y responsable, igual que la pantalla sencilla y la tabla de consulta activos.dbf. Activa detalleDbf para comparar todas las columnas originales de actual.DBF. Solo se muestran registros vigentes.")
-    public List<?> listar(@RequestParam(defaultValue = "false") boolean detalleDbf,
+    @ApiResponse(responseCode = "200", description = "Las 33 columnas originales de actual.DBF",
+            content = @Content(array = @ArraySchema(schema = @Schema(implementation = RegistroDbf.Fila.class))))
+    @Operation(summary = "Consultar todos los activos de VSIAF",
+            description = "Devuelve las mismas 33 columnas y valores de C:\\vsiaf\\dbfs\\actual.DBF, en el mismo orden. Compara en DBF Viewer ocultando los registros eliminados. DIA, MES y ANO forman la fecha de adquisición (Incorporación en VSIAF). CODOFIC y CODRESP se relacionan con oficina.DBF y resp.DBF; CODCONT y CODAUX con codcont.DBF y auxiliar.DBF. El conector de la laptop debe estar funcionando para recibir y enviar cambios.")
+    public List<?> listar(@Parameter(hidden = true) @RequestParam(defaultValue = "true") boolean detalleDbf,
             @Parameter(hidden = true) @RequestParam(defaultValue = "false") boolean interno) {
         var activos = jdbc.sql(CONSULTA + " ORDER BY a.codigo").query(Asignacion.class).list();
         if (interno) return activos;
@@ -68,10 +68,10 @@ public class ActivoController {
     }
 
     @GetMapping("/{codigo}")
-    @ApiResponse(responseCode = "200", description = "Activo encontrado", content = @Content(schema = @Schema(implementation = ResumenActivo.class)))
+    @ApiResponse(responseCode = "200", description = "Las 33 columnas originales del activo", content = @Content(schema = @Schema(implementation = RegistroDbf.Fila.class)))
     @Operation(summary = "Consultar un activo por su código")
-    public ResponseEntity<?> consultar(@Parameter(example = "PROY-002") @PathVariable String codigo,
-            @RequestParam(defaultValue = "false") boolean detalleDbf,
+    public ResponseEntity<?> consultar(@Parameter(example = "PROY-001") @PathVariable String codigo,
+            @Parameter(hidden = true) @RequestParam(defaultValue = "true") boolean detalleDbf,
             @Parameter(hidden = true) @RequestParam(defaultValue = "false") boolean interno) {
         var activo = obtener(codigo, false);
         return ResponseEntity.ok().eTag(activo.revision().toString())
@@ -88,10 +88,10 @@ public class ActivoController {
     @ApiResponse(responseCode = "201", description = "Activo creado", content = @Content(schema = @Schema(implementation = ResumenActivo.class)))
     @Transactional
     @Operation(summary = "Añadir un activo",
-            description = "Escribe código, descripción y costo. Los datos administrativos se toman del último activo registrado; la fecha será la actual. Puedes indicar vida útil, fecha y estado. Se crea en ELABORADO.")
+            description = "Escribe código, descripción y costo. Los datos administrativos se toman del último activo registrado. fechaAdquisicion usa AAAA-MM-DD y corresponde a DIA, MES y ANO en actual.DBF; si se omite se usa hoy. Se crea en ELABORADO. Al confirmar el conector la escritura en FoxPro, GET mostrará las 33 columnas originales.")
     public ResponseEntity<?> crear(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(schema = @Schema(implementation = ResumenActivo.class),
-                    examples = @ExampleObject(value = "{\"codigo\":\"PROY-003\",\"descripcion\":\"Proyector 3\",\"costoInicial\":3500,\"responsable\":\"Luis Rojas\"}")))
+                    examples = @ExampleObject(value = "{\"codigo\":\"PROY-002\",\"descripcion\":\"Proyector de aula 2\",\"costoInicial\":3500,\"vidaUtil\":8,\"fechaAdquisicion\":\"2026-11-28\",\"estadoActivo\":\"Bueno\",\"responsable\":\"Luis Rojas\"}")))
             @RequestBody Map<String, Object> datos,
             @Parameter(hidden = true) @RequestParam(defaultValue = "false") boolean interno) {
         var activo = completar(datos, null, null);
@@ -177,6 +177,12 @@ public class ActivoController {
 
     private Activo completar(Map<String, Object> datos, String codigo, Asignacion actual) {
         if (datos.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Escribe al menos un campo para guardar");
+        if (datos.containsKey("fechaAdquisicion")) {
+            datos = new LinkedHashMap<>(datos);
+            if (datos.containsKey("fechaIncorporacion") && !java.util.Objects.equals(datos.get("fechaAdquisicion"), datos.get("fechaIncorporacion")))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Las dos fechas deben coincidir");
+            datos.put("fechaIncorporacion", datos.remove("fechaAdquisicion"));
+        }
         var valores = new LinkedHashMap<String, Object>();
         var base = actual;
         if (base == null) base = jdbc.sql(CONSULTA + " ORDER BY a.codigo DESC LIMIT 1").query(Asignacion.class).optional().orElse(null);

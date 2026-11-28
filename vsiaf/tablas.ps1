@@ -36,6 +36,43 @@ function Versiones {
     return ((Get-ChildItem -LiteralPath $Directorio -File | Where-Object { $_.Extension -in '.DBF','.FPT' } | Sort-Object Name | ForEach-Object { $_.Name+':'+$_.Length+':'+$_.LastWriteTimeUtc.Ticks }) -join '|')
 }
 
+function VaciosDbf {
+    $archivo = [IO.File]::Open((Join-Path $Directorio 'actual.DBF'),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
+    $lector = [IO.BinaryReader]::new($archivo)
+    try {
+        $cabecera = $lector.ReadBytes(32)
+        $cantidad = [BitConverter]::ToUInt32($cabecera,4)
+        $inicio = [BitConverter]::ToUInt16($cabecera,8)
+        $longitud = [BitConverter]::ToUInt16($cabecera,10)
+        $campos = @()
+        $posicion = 1
+        while ($archivo.Position -lt $inicio) {
+            if ($lector.PeekChar() -eq 13) { break }
+            $c = $lector.ReadBytes(32)
+            $nombre = [Text.Encoding]::ASCII.GetString($c,0,11).Trim([char]0)
+            $campos += [pscustomobject]@{nombre=$nombre; tipo=[char]$c[11]; posicion=$posicion; longitud=[int]$c[16]}
+            $posicion += [int]$c[16]
+        }
+        $resultado = @{}
+        $archivo.Position = $inicio
+        for ($i=0; $i -lt $cantidad; $i++) {
+            $registro = $lector.ReadBytes($longitud)
+            if ($registro.Length -ne $longitud) { throw 'La tabla DBF cambió durante la lectura' }
+            if ($registro[0] -eq 42) { continue }
+            $identidad = @{}
+            $vacios = @()
+            foreach ($c in $campos) {
+                $texto = [Text.Encoding]::GetEncoding(1252).GetString($registro,$c.posicion,$c.longitud).Trim([char]0,[char]32)
+                if ($c.nombre -in 'CODIGO','ENTIDAD','UNIDAD') { $identidad[$c.nombre] = $texto }
+                if (($c.tipo -in 'N','F','L','D' -and ($texto -eq '' -or ($c.tipo -eq 'L' -and $texto -eq '?'))) -or
+                    ($c.tipo -eq 'M' -and ($texto -eq '' -or $texto -match '^0+$'))) { $vacios += $c.nombre }
+            }
+            $resultado[$identidad.ENTIDAD+'|'+$identidad.UNIDAD+'|'+$identidad.CODIGO] = $vacios
+        }
+        return ,$resultado
+    } finally { $lector.Dispose(); $archivo.Dispose() }
+}
+
 function Leer {
     $antes = Versiones
     $tabla = Filas @'
@@ -48,6 +85,7 @@ LEFT JOIN resp r ON r.entidad=a.entidad AND r.unidad=a.unidad AND r.codofic=a.co
 LEFT JOIN estado e ON e.codestado=a.codestado
 WHERE ALLTRIM(a.entidad)='0143' AND ALLTRIM(a.unidad)='1'
 '@
+    $vacios = VaciosDbf
     $resultado = @()
     foreach ($r in $tabla.Rows) {
         $fecha = [datetime]::new([int]$r.ANO,[int]$r.MES,[int]$r.DIA).ToString('yyyy-MM-dd')
@@ -72,10 +110,11 @@ WHERE ALLTRIM(a.entidad)='0143' AND ALLTRIM(a.unidad)='1'
         foreach ($campo in 'UNIDAD ENTIDAD CODIGO CODCONT CODAUX VIDAUTIL DESCRIP COSTO DEPACU MES ANO B_REV DIA CODOFIC CODRESP OBSERV DIA_ANT MES_ANT ANO_ANT VUT_ANT COSTO_ANT BAND_UFV CODESTADO COD_RUBE NRO_CONV ORG_FIN FEULT USUAR API_ESTADO CODIGOSEC BANDERAS FEC_MOD USU_MOD'.Split(' ')) {
             $v = $r[$campo]
             if ($v -is [DBNull]) { $v = $null }
-            elseif ($v -is [datetime]) { $v = $v.ToString('yyyy-MM-dd') }
+            elseif ($v -is [datetime]) { $v = if ($v.Year -lt 1900) { $null } else { $v.ToString('yyyy-MM-dd') } }
             elseif ($v -is [string]) { $v = $v.TrimEnd() }
             $dbf[$campo] = $v
         }
+        foreach ($campo in $vacios[$a.entidad+'|'+$a.unidad+'|'+$a.codigo]) { $dbf[$campo] = $null }
         $a['_dbf'] = $dbf
         $resultado += [pscustomobject]$a
     }

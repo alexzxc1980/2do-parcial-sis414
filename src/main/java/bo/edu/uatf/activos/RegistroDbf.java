@@ -3,6 +3,9 @@ package bo.edu.uatf.activos;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +24,37 @@ public class RegistroDbf {
     private final JdbcClient jdbc;
     private final ObjectMapper json;
     public record Estado(String registro, Long version, Long revision) { }
+    @Schema(name = "RegistroOriginalVSIAF", description = "Columnas originales de actual.DBF. Los campos vacíos se conservan vacíos o null según la tabla.")
+    public record Fila(
+            @Schema(description = "Unidad administrativa", example = "1") String UNIDAD,
+            @Schema(description = "Entidad", example = "0143") String ENTIDAD,
+            @Schema(description = "Código del activo", example = "PROY-001") String CODIGO,
+            @Schema(description = "Grupo contable: codcont.DBF") Integer CODCONT,
+            @Schema(description = "Tipo de activo dentro del grupo: auxiliar.DBF") Integer CODAUX,
+            @Schema(description = "Vida útil en años") BigDecimal VIDAUTIL,
+            @Schema(description = "Descripción del activo") String DESCRIP,
+            @Schema(description = "Costo inicial") BigDecimal COSTO,
+            @Schema(description = "Depreciación acumulada inicial") BigDecimal DEPACU,
+            @Schema(description = "Mes de adquisición") Integer MES,
+            @Schema(description = "Año de adquisición") Integer ANO,
+            @Schema(description = "Indicador interno de revalorización") Boolean B_REV,
+            @Schema(description = "Día de adquisición") Integer DIA,
+            @Schema(description = "Código de oficina: oficina.DBF") Integer CODOFIC,
+            @Schema(description = "Código de responsable: resp.DBF") Integer CODRESP,
+            @Schema(description = "Observaciones") String OBSERV,
+            Integer DIA_ANT, Integer MES_ANT, Integer ANO_ANT, Integer VUT_ANT,
+            BigDecimal COSTO_ANT, Boolean BAND_UFV,
+            @Schema(description = "Estado del activo: estado.DBF") Integer CODESTADO,
+            @Schema(description = "Identificador del bien") String COD_RUBE,
+            @Schema(description = "Número de convenio") String NRO_CONV,
+            @Schema(description = "Organismo financiador") String ORG_FIN,
+            @Schema(description = "Fecha registrada por VSIAF") LocalDate FEULT,
+            @Schema(description = "Usuario de registro") String USUAR,
+            @Schema(description = "Estado del registro; 1 = ELABORADO") Integer API_ESTADO,
+            @Schema(description = "Código adicional") String CODIGOSEC,
+            @Schema(description = "Indicadores internos de VSIAF") String BANDERAS,
+            @Schema(description = "Fecha de modificación") LocalDate FEC_MOD,
+            @Schema(description = "Usuario de modificación") String USU_MOD) { }
 
     public RegistroDbf(JdbcClient jdbc, ObjectMapper json) { this.jdbc = jdbc; this.json = json; }
 
