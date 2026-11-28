@@ -85,8 +85,10 @@ public class CatalogoController {
 
     @PutMapping("/oficinas/{id}")
     @Transactional
-    @Operation(summary = "Modificar el nombre de una oficina")
-    public Oficina modificarOficina(@PathVariable int id, @Valid @RequestBody Oficina o,
+    @Operation(summary = "Modificar el nombre de una oficina", description = "Pulsa Try it out y escribe el ID de la oficina: se cargarán sus datos actuales. Cambia nombre, conserva id y pulsa Execute para guardar.")
+    public Oficina modificarOficina(@Parameter(description = "ID de la oficina que quieres modificar. Al escribirlo se cargan sus datos actuales.") @PathVariable int id,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @io.swagger.v3.oas.annotations.media.ExampleObject(value = "{}")))
+            @Valid @RequestBody Oficina o,
             @Parameter(hidden = true) @RequestHeader(value = "If-Match", required = false) String revision) {
         if (id != o.id()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Los códigos deben coincidir");
         comprobarRevision("oficina", id, revision);
@@ -98,8 +100,10 @@ public class CatalogoController {
 
     @PutMapping("/responsables/{id}")
     @Transactional
-    @Operation(summary = "Modificar el nombre y cargo de un responsable", description = "Conserva la oficina si se omite oficinaId. Un responsable con activos asignados no se puede trasladar a otra oficina desde este catálogo.")
-    public Responsable modificarResponsable(@PathVariable int id, @Valid @RequestBody Responsable r,
+    @Operation(summary = "Modificar el nombre y cargo de un responsable", description = "Pulsa Try it out y escribe el ID del responsable: se cargarán sus datos actuales. Cambia nombre o cargo, conserva id y oficinaId, y pulsa Execute para guardar. La oficina se conserva si se omite oficinaId.")
+    public Responsable modificarResponsable(@Parameter(description = "ID del responsable que quieres modificar. Al escribirlo se cargan sus datos actuales.") @PathVariable int id,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @io.swagger.v3.oas.annotations.media.ExampleObject(value = "{}")))
+            @Valid @RequestBody Responsable r,
             @Parameter(hidden = true) @RequestHeader(value = "If-Match", required = false) String revision) {
         if (id != r.id()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Los códigos deben coincidir");
         comprobarRevision("responsable", id, revision);
