@@ -20,7 +20,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api")
-@Tag(name = "Oficinas y responsables", description = "Catálogos de VSIAF. Con el conector de la laptop encendido, los registros nuevos y las modificaciones se reflejan en oficina.DBF y resp.DBF, aunque no tengan activos asignados. En VSIAF vuelve a abrir el catálogo para actualizar la pantalla.")
+@Tag(name = "Oficinas y responsables", description = "Catálogos de VSIAF. Con el conector de la laptop encendido, las altas, modificaciones y eliminaciones se reflejan en oficina.DBF y resp.DBF, aunque no tengan activos asignados. En VSIAF vuelve a abrir el catálogo para actualizar la pantalla.")
 public class CatalogoController {
     public record Oficina(
             @NotNull @Min(1) @Max(9999) @Schema(description = "Código CODOFIC de oficina.DBF", example = "2") Integer id,
@@ -111,6 +111,36 @@ public class CatalogoController {
                 .param("nombre", r.nombre().strip()).param("cargo", r.cargo().strip()).param("oficina", oficina).param("id", id).update();
         jdbc.sql("UPDATE segundo_parcial.activo SET revision = revision + 1 WHERE responsable_id = :id").param("id", id).update();
         return new Responsable(id, r.nombre().strip(), r.cargo().strip(), oficina);
+    }
+
+    @DeleteMapping("/responsables/{id}")
+    @Transactional
+    @Operation(summary = "Eliminar un responsable sin activos asignados", description = "El conector marca el registro como eliminado en resp.DBF. No se borran sus activos: si todavía tiene alguno asignado, devuelve 409.")
+    @ApiResponse(responseCode = "204", description = "Responsable eliminado")
+    @ApiResponse(responseCode = "409", description = "El responsable todavía tiene activos asignados")
+    public ResponseEntity<Void> eliminarResponsable(@PathVariable int id,
+            @Parameter(hidden = true) @RequestHeader(value = "If-Match", required = false) String revision) {
+        comprobarRevision("responsable", id, revision);
+        if (jdbc.sql("SELECT EXISTS (SELECT 1 FROM segundo_parcial.activo WHERE responsable_id=:id)").param("id", id).query(Boolean.class).single())
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "El responsable tiene activos asignados; reasigna esos activos antes de eliminarlo");
+        jdbc.sql("DELETE FROM segundo_parcial.responsable WHERE id=:id").param("id", id).update();
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/oficinas/{id}")
+    @Transactional
+    @Operation(summary = "Eliminar una oficina sin responsables ni activos", description = "El conector marca el registro como eliminado en oficina.DBF. Si tiene responsables o activos relacionados, devuelve 409 y conserva los datos.")
+    @ApiResponse(responseCode = "204", description = "Oficina eliminada")
+    @ApiResponse(responseCode = "409", description = "La oficina todavía tiene responsables o activos")
+    public ResponseEntity<Void> eliminarOficina(@PathVariable int id,
+            @Parameter(hidden = true) @RequestHeader(value = "If-Match", required = false) String revision) {
+        comprobarRevision("oficina", id, revision);
+        if (jdbc.sql("SELECT EXISTS (SELECT 1 FROM segundo_parcial.activo WHERE oficina_id=:id)").param("id", id).query(Boolean.class).single())
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "La oficina tiene activos asignados; reasigna esos activos antes de eliminarla");
+        if (jdbc.sql("SELECT EXISTS (SELECT 1 FROM (" + RESPONSABLES + ") r WHERE r.\"oficinaId\"=:id)").param("id", id).query(Boolean.class).single())
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "La oficina tiene responsables registrados; trasládalos o elimina los que no estén en uso");
+        jdbc.sql("DELETE FROM segundo_parcial.oficina WHERE id=:id").param("id", id).update();
+        return ResponseEntity.noContent().build();
     }
 
     private int oficinaValida(Integer id) {

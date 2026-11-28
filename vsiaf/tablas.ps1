@@ -235,6 +235,72 @@ SELECT cat
     return 'OK'
 }
 
+function EliminarCatalogo($peticion) {
+    $tipo = $peticion.tipo
+    $anterior = $peticion.anterior
+    if ($tipo -notin 'oficinas','responsables' -or $null -eq $anterior) { throw 'Catálogo o registro anterior inválido' }
+    $id = [int]$anterior.id
+    $alias = if ($tipo -eq 'oficinas') { 'ofi' } else { 'res' }
+    $codigoCampo = if ($tipo -eq 'oficinas') { 'CODOFIC' } else { 'CODRESP' }
+    $mapa = if ($tipo -eq 'oficinas') { [ordered]@{id='CODOFIC';nombre='NOMOFIC'} } else { [ordered]@{id='CODRESP';nombre='NOMRESP';cargo='CARGO';oficinaId='CODOFIC'} }
+    $lineas = [Collections.Generic.List[string]]::new()
+    $lineas.Add(@"
+CLOSE TABLES ALL
+SET EXCLUSIVE OFF
+SET MULTILOCKS ON
+SET DELETED ON
+SET REPROCESS TO 1 SECONDS
+USE actual SHARED IN 0 ALIAS af
+USE oficina SHARED IN 0 ALIAS ofi
+USE resp SHARED IN 0 ALIAS res
+IF !FLOCK('af') OR !FLOCK('ofi') OR !FLOCK('res')
+    RETURN 'ERROR: Hay datos en edición; guarda o cancela los cambios en VSIAF'
+ENDIF
+IF !MAKETRANSACTABLE('$alias')
+    RETURN 'ERROR: No se pudo iniciar la eliminación en FoxPro'
+ENDIF
+BEGIN TRANSACTION
+SELECT $alias
+LOCATE FOR ALLTRIM(ENTIDAD)=='0143' AND ALLTRIM(UNIDAD)=='1' AND $codigoCampo=$id
+IF !FOUND()
+    RETURN 'ERROR: El registro ya fue eliminado en VSIAF; se volverá a consultar'
+ENDIF
+"@)
+    foreach ($k in $mapa.Keys) {
+        $campo = $mapa[$k]
+        $valor = $anterior.$k
+        $expresion = if ($valor -is [string]) { 'ALLTRIM(NVL('+ $campo +',""))' } else { $campo }
+        $lineas.Add('IF !('+ $expresion +' == '+(Literal $valor)+")`nRETURN 'ERROR: El catálogo cambió en VSIAF; no se eliminó'`nENDIF")
+    }
+    $lineas.Add(@"
+SELECT af
+LOCATE FOR ALLTRIM(ENTIDAD)=='0143' AND ALLTRIM(UNIDAD)=='1' AND $codigoCampo=$id
+IF FOUND()
+    RETURN 'ERROR: El registro tiene activos asignados; no se eliminó'
+ENDIF
+"@)
+    if ($tipo -eq 'oficinas') {
+        $lineas.Add(@"
+SELECT res
+LOCATE FOR ALLTRIM(ENTIDAD)=='0143' AND ALLTRIM(UNIDAD)=='1' AND CODOFIC=$id
+IF FOUND()
+    RETURN 'ERROR: La oficina tiene responsables registrados; no se eliminó'
+ENDIF
+"@)
+    }
+    $lineas.Add("DELETE IN $alias`nEND TRANSACTION`nFLUSH`nRETURN 'OK'")
+    $cmd = $conexion.CreateCommand()
+    $cmd.CommandText = 'EXECSCRIPT(?)'
+    [void]$cmd.Parameters.Add('script',[System.Data.OleDb.OleDbType]::LongVarChar)
+    $cmd.Parameters[0].Value = $lineas -join "`r`n"
+    try { $resultado = $cmd.ExecuteScalar(); if ($resultado -ne 'OK') { throw $resultado } }
+    finally {
+        $cmd.Parameters[0].Value = "IF TXNLEVEL()>0`nROLLBACK`nENDIF`nUNLOCK ALL`nCLOSE TABLES ALL`nRETURN .T."
+        try { [void]$cmd.ExecuteScalar() } finally { $cmd.Dispose() }
+    }
+    return 'OK'
+}
+
 function Consulta($activos) {
     $carpeta = Join-Path (Split-Path -Parent $Directorio) 'consulta'
     [void](New-Item -ItemType Directory -Path $carpeta -Force)
@@ -435,6 +501,7 @@ try {
             elseif ($peticion.accion -eq 'responsables') { $datos = Responsables }
             elseif ($peticion.accion -eq 'catalogos') { $datos = Catalogos }
             elseif ($peticion.accion -eq 'guardar-catalogo') { $datos = GuardarCatalogo $peticion }
+            elseif ($peticion.accion -eq 'eliminar-catalogo') { $datos = EliminarCatalogo $peticion }
             elseif ($peticion.accion -eq 'consulta') { $datos = Consulta $peticion.activos }
             else { throw 'Operación desconocida' }
             $salida = @{ok=$true; resultado=$datos}

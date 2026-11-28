@@ -205,6 +205,9 @@ class Conexion:
             if codigo not in self.estado['deseado']:
                 continue
             objetivo = self.estado['deseado'][codigo]
+            if self.catalogos.referencia_eliminada(objetivo):
+                self.aviso(codigo, codigo + ': referencia a un catálogo eliminado; revisa la asignación')
+                continue
             for nombre, foto in fotos.items():
                 actual = foto.get(codigo)
                 try:
@@ -237,6 +240,7 @@ class Conexion:
                     self.ultimo_aviso.pop(codigo + nombre + 'dbf', None)
                 except Exception as error:
                     self.aviso(codigo + nombre + 'dbf', codigo + ': detalle DBF pendiente en ' + nombre + ': ' + str(error))
+        self.catalogos.eliminar_pendientes()
 
 
 def main():

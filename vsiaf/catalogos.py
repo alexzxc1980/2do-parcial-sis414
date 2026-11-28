@@ -21,8 +21,9 @@ class Catalogos:
         return {tipo: fuente.pedir('/api/' + tipo + '?interno=true') for tipo in CAMPOS}
 
     def guardar(self, nombre, fuente, tipo, objetivo, anterior):
+        id = objetivo['id'] if objetivo is not None else anterior['id']
         if nombre == 'FoxPro':
-            fuente.enviar({'accion': 'guardar-catalogo', 'tipo': tipo, 'registro': objetivo,
+            fuente.enviar({'accion': 'eliminar-catalogo' if objetivo is None else 'guardar-catalogo', 'tipo': tipo, 'registro': objetivo,
                            'anterior': normalizar(tipo, anterior)})
         else:
             ruta = '/api/' + tipo
@@ -31,13 +32,14 @@ class Catalogos:
             else:
                 if 'revision' not in anterior:
                     raise RuntimeError('El backend debe actualizarse para conectar los catálogos')
-                fuente.pedir(ruta + '/' + str(objetivo['id']), 'PUT', objetivo, revision=anterior['revision'])
-        actualizado = next((r for r in self.leer(nombre, fuente)[tipo] if r['id'] == objetivo['id']), None)
+                fuente.pedir(ruta + '/' + str(id), 'DELETE' if objetivo is None else 'PUT', objetivo, revision=anterior['revision'])
+        actualizado = next((r for r in self.leer(nombre, fuente)[tipo] if r['id'] == id), None)
         if normalizar(tipo, actualizado) != objetivo:
             raise RuntimeError('El catálogo no confirmó los datos guardados')
         return actualizado
 
     def paso(self):
+        self.pendientes = []
         fotos = {}
         for nombre, fuente in self.conexion.fuentes.items():
             try:
@@ -64,15 +66,24 @@ class Catalogos:
                             cambios.extend([actual, estado['deseado'][id]])
                     elif actual != previo:
                         cambios.append(actual)
-                if cambios and (any(c != cambios[0] for c in cambios) or cambios[0] is None):
-                    self.conexion.aviso(clave, clave + ': cambio simultáneo o eliminación en un catálogo; se conservaron las versiones para revisarlas')
+                if cambios and any(c != cambios[0] for c in cambios):
+                    self.conexion.aviso(clave, clave + ': cambios simultáneos distintos en un catálogo; se conservaron las versiones para revisarlas')
                     completo = False
                     continue
                 if cambios:
                     estado['deseado'][id] = copy.deepcopy(cambios[0])
                     self.conexion.guardar_estado()
-                objetivo = estado['deseado'].get(id)
+                if id not in estado['deseado']:
+                    continue
+                objetivo = estado['deseado'][id]
                 if objetivo is None:
+                    for nombre, foto in fotos.items():
+                        actual = foto[tipo].get(id)
+                        if actual is not None:
+                            self.pendientes.append((tipo, id, nombre, actual))
+                        else:
+                            estado['visto'].setdefault(nombre, {})[id] = None
+                    self.conexion.guardar_estado()
                     continue
                 for nombre, foto in fotos.items():
                     actual = foto[tipo].get(id)
@@ -86,3 +97,20 @@ class Catalogos:
                         completo = False
                         self.conexion.aviso(clave + nombre, clave + ' en ' + nombre + ': ' + str(error))
         return completo
+
+    def referencia_eliminada(self, activo):
+        return activo is not None and any(
+            str(activo[campo]) in self.estado.get(tipo, {}).get('deseado', {}) and
+            self.estado[tipo]['deseado'][str(activo[campo])] is None
+            for tipo, campo in (('oficinas', 'oficinaId'), ('responsables', 'responsableId')))
+
+    def eliminar_pendientes(self):
+        for tipo, id, nombre, anterior in sorted(self.pendientes, key=lambda p: p[0] == 'oficinas'):
+            clave = tipo + ':' + id + nombre
+            try:
+                self.guardar(nombre, self.conexion.fuentes[nombre], tipo, None, anterior)
+                self.estado[tipo]['visto'].setdefault(nombre, {})[id] = None
+                self.conexion.guardar_estado()
+                self.conexion.aviso(clave, tipo + ':' + id + ': eliminado en ' + nombre)
+            except Exception as error:
+                self.conexion.aviso(clave, tipo + ':' + id + ' en ' + nombre + ': ' + str(error))
