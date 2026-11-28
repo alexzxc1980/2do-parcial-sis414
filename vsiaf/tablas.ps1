@@ -137,6 +137,104 @@ ORDER BY r.nomresp
     return ,$resultado
 }
 
+function Catalogos {
+    $antes = Versiones
+    $oficinas = @()
+    $responsables = @()
+    foreach ($r in (Filas "SELECT codofic,nomofic FROM oficina WHERE ALLTRIM(entidad)='0143' AND ALLTRIM(unidad)='1' AND codofic>0 AND !EMPTY(nomofic)").Rows) {
+        $oficinas += [pscustomobject]@{id=[int]$r.CODOFIC; nombre=(Texto $r.NOMOFIC)}
+    }
+    foreach ($r in (Filas "SELECT codresp,nomresp,cargo,codofic FROM resp WHERE ALLTRIM(entidad)='0143' AND ALLTRIM(unidad)='1' AND codresp>=0 AND !EMPTY(nomresp)").Rows) {
+        $responsables += [pscustomobject]@{id=[int]$r.CODRESP; nombre=(Texto $r.NOMRESP); cargo=(Texto $r.CARGO); oficinaId=[int]$r.CODOFIC}
+    }
+    if (@($oficinas.id | Sort-Object -Unique).Count -ne $oficinas.Count -or @($responsables.id | Sort-Object -Unique).Count -ne $responsables.Count) {
+        throw 'Hay códigos de catálogo repetidos en VSIAF; no se reemplazaron registros'
+    }
+    if ($antes -ne (Versiones)) { throw 'FoxPro está guardando un catálogo; se reintentará la lectura' }
+    return @{oficinas=$oficinas; responsables=$responsables}
+}
+
+function GuardarCatalogo($peticion) {
+    $tipo = $peticion.tipo
+    if ($tipo -notin 'oficinas','responsables') { throw 'Catálogo desconocido' }
+    $a = $peticion.registro
+    $anterior = $peticion.anterior
+    $tabla = if ($tipo -eq 'oficinas') { 'oficina' } else { 'resp' }
+    $codigoCampo = if ($tipo -eq 'oficinas') { 'CODOFIC' } else { 'CODRESP' }
+    $id = [int]$a.id
+    $mapa = if ($tipo -eq 'oficinas') { [ordered]@{id='CODOFIC';nombre='NOMOFIC'} } else { [ordered]@{id='CODRESP';nombre='NOMRESP';cargo='CARGO';oficinaId='CODOFIC'} }
+    $lineas = [Collections.Generic.List[string]]::new()
+    $lineas.Add(@"
+CLOSE TABLES ALL
+SET EXCLUSIVE OFF
+SET MULTILOCKS ON
+SET DELETED ON
+SET REPROCESS TO 1 SECONDS
+USE $tabla SHARED IN 0 ALIAS cat
+IF !FLOCK('cat') OR !MAKETRANSACTABLE('cat')
+    RETURN 'ERROR: El catálogo está en edición; guarda o cancela en VSIAF'
+ENDIF
+BEGIN TRANSACTION
+SELECT cat
+LOCATE FOR ALLTRIM(ENTIDAD)=='0143' AND ALLTRIM(UNIDAD)=='1' AND $codigoCampo=$id
+"@)
+    if ($null -eq $anterior) {
+        $lineas.Add("IF FOUND()`nRETURN 'ERROR: El código ya existe en VSIAF'`nENDIF`nAPPEND BLANK IN cat")
+        $lineas.Add("REPLACE ENTIDAD WITH '0143',UNIDAD WITH '1' IN cat")
+        $lineas.Add("IF TYPE('cat.API_ESTADO') <> 'U'`nREPLACE API_ESTADO WITH 1 IN cat`nENDIF")
+    } else {
+        $lineas.Add("IF !FOUND()`nRETURN 'ERROR: El catálogo fue eliminado en VSIAF'`nENDIF")
+        foreach ($k in $mapa.Keys) {
+            $campo = $mapa[$k]
+            $valor = $anterior.$k
+            $expresion = if ($valor -is [string]) { 'ALLTRIM(NVL('+ $campo +',""))' } else { $campo }
+            $lineas.Add('IF !('+ $expresion +' == '+(Literal $valor)+")`nRETURN 'ERROR: El catálogo cambió en VSIAF'`nENDIF")
+        }
+    }
+    if ($tipo -eq 'responsables') {
+        $oficina = [int]$a.oficinaId
+        $lineas.Add(@"
+USE oficina SHARED IN 0 ALIAS ofi
+IF !FLOCK('ofi')
+    RETURN 'ERROR: La oficina está en edición'
+ENDIF
+SELECT ofi
+LOCATE FOR ALLTRIM(ENTIDAD)=='0143' AND ALLTRIM(UNIDAD)=='1' AND CODOFIC=$oficina
+IF !FOUND()
+    RETURN 'ERROR: No existe la oficina del responsable en VSIAF'
+ENDIF
+SELECT cat
+"@)
+        if ($null -ne $anterior -and [int]$anterior.oficinaId -ne $oficina) {
+            $lineas.Add(@"
+USE actual SHARED IN 0 ALIAS af
+IF !FLOCK('af')
+    RETURN 'ERROR: Hay activos en edición'
+ENDIF
+SELECT af
+LOCATE FOR ALLTRIM(ENTIDAD)=='0143' AND ALLTRIM(UNIDAD)=='1' AND CODRESP=$id
+IF FOUND()
+    RETURN 'ERROR: El responsable tiene activos asignados; conserva su oficina'
+ENDIF
+SELECT cat
+"@)
+        }
+    }
+    $valores = @($mapa.Keys | ForEach-Object { $mapa[$_] + ' WITH ' + (Literal $a.$_) })
+    $lineas.Add('REPLACE '+($valores -join ',')+',FEULT WITH DATE(),USUAR WITH "admin" IN cat')
+    $lineas.Add("END TRANSACTION`nFLUSH`nRETURN 'OK'")
+    $cmd = $conexion.CreateCommand()
+    $cmd.CommandText = 'EXECSCRIPT(?)'
+    [void]$cmd.Parameters.Add('script',[System.Data.OleDb.OleDbType]::LongVarChar)
+    $cmd.Parameters[0].Value = $lineas -join "`r`n"
+    try { $resultado = $cmd.ExecuteScalar(); if ($resultado -ne 'OK') { throw $resultado } }
+    finally {
+        $cmd.Parameters[0].Value = "IF TXNLEVEL()>0`nROLLBACK`nENDIF`nUNLOCK ALL`nCLOSE TABLES ALL`nRETURN .T."
+        try { [void]$cmd.ExecuteScalar() } finally { $cmd.Dispose() }
+    }
+    return 'OK'
+}
+
 function Consulta($activos) {
     $carpeta = Join-Path (Split-Path -Parent $Directorio) 'consulta'
     [void](New-Item -ItemType Directory -Path $carpeta -Force)
@@ -335,6 +433,8 @@ try {
             if ($peticion.accion -eq 'leer') { $datos = Leer }
             elseif ($peticion.accion -eq 'guardar') { $datos = Guardar $peticion }
             elseif ($peticion.accion -eq 'responsables') { $datos = Responsables }
+            elseif ($peticion.accion -eq 'catalogos') { $datos = Catalogos }
+            elseif ($peticion.accion -eq 'guardar-catalogo') { $datos = GuardarCatalogo $peticion }
             elseif ($peticion.accion -eq 'consulta') { $datos = Consulta $peticion.activos }
             else { throw 'Operación desconocida' }
             $salida = @{ok=$true; resultado=$datos}

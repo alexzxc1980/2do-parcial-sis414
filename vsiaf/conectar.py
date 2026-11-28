@@ -8,6 +8,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from catalogos import Catalogos
 
 CAMPOS = ('codigo descripcion oficinaId responsableId codigoAdicional fechaIncorporacion grupo auxiliar '
           'estadoActivo estadoRegistro observaciones costoInicial depreciacionInicial vidaUtil depreciar '
@@ -113,7 +114,7 @@ class Api:
         actual = next((c for c in self.pedir('/api/' + tipo) if c['id'] == deseado['id']), None)
         if actual is None:
             self.pedir('/api/' + tipo, 'POST', deseado)
-        elif actual != deseado:
+        elif any(actual.get(k) != v for k, v in deseado.items()):
             self.pedir('/api/' + tipo + '/' + str(deseado['id']), 'PUT', deseado)
 
     def guardar(self, codigo, activo, anterior):
@@ -145,6 +146,7 @@ class Conexion:
         self.ultimo_aviso = {}
         self.detalles_confirmados = {}
         self.ultima_consulta = None
+        self.catalogos = Catalogos(self)
 
     def guardar_estado(self):
         self.archivo.parent.mkdir(parents=True, exist_ok=True)
@@ -158,6 +160,8 @@ class Conexion:
             self.ultimo_aviso[clave] = mensaje
 
     def paso(self):
+        if not self.catalogos.paso():
+            return
         fotos = {}
         for nombre, fuente in self.fuentes.items():
             try:

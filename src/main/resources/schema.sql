@@ -45,3 +45,8 @@ ALTER TABLE segundo_parcial.activo ALTER COLUMN responsable_id DROP NOT NULL;
 ALTER TABLE segundo_parcial.activo
     ADD COLUMN IF NOT EXISTS registro_dbf JSONB,
     ADD COLUMN IF NOT EXISTS dbf_revision BIGINT;
+
+ALTER TABLE segundo_parcial.oficina ADD COLUMN IF NOT EXISTS revision BIGINT NOT NULL DEFAULT 1;
+ALTER TABLE segundo_parcial.responsable
+    ADD COLUMN IF NOT EXISTS oficina_id INTEGER REFERENCES segundo_parcial.oficina(id),
+    ADD COLUMN IF NOT EXISTS revision BIGINT NOT NULL DEFAULT 1;
