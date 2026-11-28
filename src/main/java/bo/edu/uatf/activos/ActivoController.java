@@ -88,10 +88,10 @@ public class ActivoController {
     @ApiResponse(responseCode = "201", description = "Activo creado", content = @Content(schema = @Schema(implementation = ResumenActivo.class)))
     @Transactional
     @Operation(summary = "Añadir un activo",
-            description = "Escribe código, descripción y costo. Los datos administrativos se toman del último activo registrado. fechaAdquisicion usa AAAA-MM-DD y corresponde a DIA, MES y ANO en actual.DBF; si se omite se usa hoy. Se crea en ELABORADO. Al confirmar el conector la escritura en FoxPro, GET mostrará las 33 columnas originales.")
+            description = "El ejemplo muestra todos los campos admitidos para el alta. Usa un código nuevo. Puedes usar responsableId o responsable; si envías ambos deben coincidir y pertenecer a oficinaId. Consulta los códigos en GET /api/oficinas y GET /api/responsables. Al cambiar grupo, depreciar y actualizar deben coincidir con GET /api/grupos. Los datos administrativos omitidos se toman del último activo y fechaAdquisicion usa hoy si se omite. Se crea en ELABORADO. El conector guarda en VSIAF y GET conserva las 33 columnas originales.")
     public ResponseEntity<?> crear(
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(schema = @Schema(implementation = ResumenActivo.class),
-                    examples = @ExampleObject(value = "{\"codigo\":\"PROY-002\",\"descripcion\":\"Proyector de aula 2\",\"costoInicial\":3500,\"vidaUtil\":8,\"fechaAdquisicion\":\"2026-11-28\",\"estadoActivo\":\"Bueno\",\"responsable\":\"Luis Rojas\"}")))
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(schema = @Schema(implementation = CamposEditablesActivo.Nuevo.class),
+                    examples = @ExampleObject(value = CamposEditablesActivo.EJEMPLO_CREAR)))
             @RequestBody Map<String, Object> datos,
             @Parameter(hidden = true) @RequestParam(defaultValue = "false") boolean interno) {
         var activo = completar(datos, null, null);
@@ -110,10 +110,10 @@ public class ActivoController {
     @ApiResponse(responseCode = "200", description = "Activo modificado", content = @Content(schema = @Schema(implementation = ResumenActivo.class)))
     @Transactional
     @Operation(summary = "Modificar un activo",
-            description = "Introduce el código en la URL y únicamente los campos que deseas cambiar. Los campos omitidos conservan su valor. El activo debe estar en ELABORADO.")
+            description = "Introduce el código en la URL. El ejemplo muestra todos los campos editables; elimina del JSON los que no quieras cambiar. Los campos omitidos conservan su valor. Usa responsableId o responsable; si envías ambos deben coincidir y pertenecer a oficinaId. Consulta oficinas y responsables en sus GET. Si cambias grupo, usa sus valores de depreciar y actualizar de GET /api/grupos. El activo debe estar en ELABORADO y los cambios se guardan en VSIAF mediante el conector.")
     public Object modificar(@Parameter(example = "PROY-002") @PathVariable String codigo,
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(schema = @Schema(implementation = ResumenActivo.class),
-                    examples = @ExampleObject(value = "{\"descripcion\":\"Proyector 2 actualizado\",\"costoInicial\":3200}")))
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(schema = @Schema(implementation = CamposEditablesActivo.class),
+                    examples = @ExampleObject(value = CamposEditablesActivo.EJEMPLO_MODIFICAR)))
             @RequestBody Map<String, Object> datos,
             @Parameter(hidden = true) @RequestHeader(value = "If-Match", required = false) String revision,
             @Parameter(hidden = true) @RequestParam(defaultValue = "false") boolean interno) {
