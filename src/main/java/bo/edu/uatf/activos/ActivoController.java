@@ -100,16 +100,7 @@ public class ActivoController {
         }
         var activo = completar(datos, null, null);
         validar(activo);
-        if (!interno) {
-            var oficina = jdbc.sql("""
-                    SELECT COALESCE(r.oficina_id,
-                        (SELECT MIN(a.oficina_id) FROM segundo_parcial.activo a WHERE a.responsable_id = r.id),
-                        (SELECT MIN(o.id) FROM segundo_parcial.oficina o WHERE o.id > 0))
-                    FROM segundo_parcial.responsable r WHERE r.id = :id FOR SHARE OF r
-                    """).param("id", activo.responsableId()).query(Integer.class).single();
-            if (!activo.oficinaId().equals(oficina))
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El responsable no pertenece a la oficina seleccionada");
-        }
+        if (!interno) validarAsignacion(activo);
         var p = parametros(activo);
         var columnas = String.join(", ", p.keySet());
         var valores = p.keySet().stream().map(k -> ":" + k).toList();
@@ -132,8 +123,11 @@ public class ActivoController {
             @Parameter(hidden = true) @RequestParam(defaultValue = "false") boolean interno) {
         var actual = obtener(codigo, true);
         editable(actual, revision);
+        if (!interno && (datos.containsKey("responsable") || datos.containsKey("oficina") || datos.containsKey("cargo")))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selecciona oficinaId y responsableId; los nombres se editan en Oficinas y responsables");
         var activo = completar(datos, codigo, actual);
         validar(activo);
+        if (!interno) validarAsignacion(activo);
         var p = parametros(activo);
         var cambios = p.keySet().stream().filter(k -> !k.equals("codigo")).map(k -> k + " = :" + k).toList();
         jdbc.sql("UPDATE segundo_parcial.activo SET " + String.join(", ", cambios)
@@ -164,6 +158,17 @@ public class ActivoController {
         }
         if (!"ELABORADO".equals(activo.estadoRegistro())) throw new ResponseStatusException(HttpStatus.CONFLICT,
                 "Solo se pueden modificar o eliminar activos en estado ELABORADO");
+    }
+
+    private void validarAsignacion(Activo activo) {
+        var oficina = jdbc.sql("""
+                SELECT COALESCE(r.oficina_id,
+                    (SELECT MIN(a.oficina_id) FROM segundo_parcial.activo a WHERE a.responsable_id = r.id),
+                    (SELECT MIN(o.id) FROM segundo_parcial.oficina o WHERE o.id > 0))
+                FROM segundo_parcial.responsable r WHERE r.id = :id FOR SHARE OF r
+                """).param("id", activo.responsableId()).query(Integer.class).single();
+        if (!activo.oficinaId().equals(oficina))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El responsable no pertenece a la oficina seleccionada");
     }
 
     private void validar(Activo activo) {

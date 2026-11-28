@@ -58,7 +58,7 @@ function CatalogosReales(system) {
     const rutas = new Set(['/api/responsables/{id}', '/api/oficinas/{id}', activos]);
     const parametroRuta = ruta => ruta === activos ? 'codigo' : 'id';
     const camposActivo = ['descripcion', 'codigoAdicional', 'fechaAdquisicion', 'estadoActivo', 'observaciones',
-        'costoInicial', 'depreciacionInicial', 'vidaUtil', 'rube', 'numeroConvenio'];
+        'costoInicial', 'depreciacionInicial', 'vidaUtil', 'rube', 'numeroConvenio', 'oficinaId', 'responsableId'];
     const estados = new Map();
     const oyentes = new Map();
     const React = system.React;
@@ -186,19 +186,26 @@ function CatalogosReales(system) {
 }
 
 function AsignacionNuevoActivo(system) {
-    const ruta = '/api/activos';
+    return AsignacionActivo(system, '/api/activos', 'post');
+}
+
+function AsignacionEditarActivo(system) {
+    return AsignacionActivo(system, '/api/activos/{codigo}', 'put');
+}
+
+function AsignacionActivo(system, ruta, metodo) {
     const React = system.React;
     const oyentes = new Set();
     let estado = {oficinas: [], responsables: [], cargando: false, cargado: false, error: '', activo: false};
     let control;
-    const corresponde = props => (props.pathMethod?.[0] || props.path) === ruta && (props.pathMethod?.[1] || props.method) === 'post';
+    const corresponde = props => (props.pathMethod?.[0] || props.path) === ruta && (props.pathMethod?.[1] || props.method) === metodo;
     function avisar(cambios = {}) {
         estado = {...estado, ...cambios};
         for (const avisar of oyentes) avisar();
     }
     function cuerpo() {
         try {
-            const datos = JSON.parse(system.oas3Selectors.requestBodyValue(ruta, 'post'));
+            const datos = JSON.parse(system.oas3Selectors.requestBodyValue(ruta, metodo));
             return datos && typeof datos === 'object' && !Array.isArray(datos) ? datos : null;
         } catch { return null; }
     }
@@ -207,7 +214,7 @@ function AsignacionNuevoActivo(system) {
         if (!datos) return;
         datos[campo] = valor === '' ? null : Number(valor);
         if (campo === 'oficinaId') datos.responsableId = null;
-        system.oas3Actions.setRequestBodyValue({pathMethod: [ruta, 'post'], value: JSON.stringify(datos, null, 2)});
+        system.oas3Actions.setRequestBodyValue({pathMethod: [ruta, metodo], value: JSON.stringify(datos, null, 2)});
     }
     function seleccionValida(datos) {
         return estado.cargado && !estado.cargando && !estado.error && datos
@@ -275,11 +282,12 @@ function AsignacionNuevoActivo(system) {
                     : estado.cargado && !estado.oficinas.length ? 'Registra una oficina en POST /api/oficinas.'
                     : oficina && !responsables.length ? 'Registra un responsable para esta oficina en POST /api/responsables.'
                     : datos.responsableId != null && !responsable ? 'Selecciona un responsable de esta oficina.' : '');
-                const deshabilitado = estado.cargando || !estado.cargado || !datos;
+                const deshabilitado = estado.cargando || !estado.cargado || !datos || !Object.keys(datos).length;
+                const prefijo = metodo === 'post' ? 'nuevo-activo-' : 'editar-activo-';
                 const selector = (campo, titulo, filas, elegido, deshabilitado) => React.createElement('label',
-                    {htmlFor: 'nuevo-activo-' + campo, style: {display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '240px', flex: 1}},
+                    {htmlFor: prefijo + campo, style: {display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '240px', flex: 1}},
                     titulo,
-                    React.createElement('select', {id: 'nuevo-activo-' + campo, value: elegido ? String(elegido.id) : '', disabled: deshabilitado,
+                    React.createElement('select', {id: prefijo + campo, value: elegido ? String(elegido.id) : '', disabled: deshabilitado,
                         onChange: evento => elegir(campo, evento.target.value), style: {width: '100%', maxWidth: '100%'}},
                         React.createElement('option', {value: ''}, 'Selecciona ' + titulo.toLowerCase()),
                         ...filas.map(fila => React.createElement('option', {key: fila.id, value: String(fila.id)}, fila.nombre + ' (' + fila.id + ')'))));
@@ -303,14 +311,14 @@ function AsignacionNuevoActivo(system) {
                 wrapActions: {
                     setRequestBodyValue: original => datos => {
                         const resultado = original(datos);
-                        if (datos.pathMethod?.[0] === ruta && datos.pathMethod?.[1] === 'post') avisar();
+                        if (datos.pathMethod?.[0] === ruta && datos.pathMethod?.[1] === metodo) avisar();
                         return resultado;
                     },
                     setSelectedServer: original => (...args) => {
                         const resultado = original(...args);
                         if (estado.activo) {
                             const datos = cuerpo();
-                            if (datos) system.oas3Actions.setRequestBodyValue({pathMethod: [ruta, 'post'], value: JSON.stringify({...datos, oficinaId: null, responsableId: null}, null, 2)});
+                            if (datos && metodo === 'post') system.oas3Actions.setRequestBodyValue({pathMethod: [ruta, metodo], value: JSON.stringify({...datos, oficinaId: null, responsableId: null}, null, 2)});
                             cargar();
                         }
                         return resultado;

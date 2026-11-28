@@ -35,16 +35,16 @@ public class CamposEditablesActivo {
     @Schema(description = "Número de convenio. NRO_CONV en actual.DBF", example = "", maxLength = 10)
     public String numeroConvenio;
 
+    @Schema(description = "Oficina existente. CODOFIC en actual.DBF", minimum = "1", maximum = "9999")
+    public Integer oficinaId;
+
+    @Schema(description = "Responsable de la oficina elegida. CODRESP en actual.DBF", minimum = "0", maximum = "99999")
+    public Integer responsableId;
+
     @Schema(name = "NuevoActivo", requiredProperties = {"codigo", "descripcion", "costoInicial", "oficinaId", "responsableId"})
     public static class Nuevo extends CamposEditablesActivo {
         @Schema(description = "Código único del activo nuevo. CODIGO en actual.DBF", example = "PROY-004", maxLength = 15, pattern = "[A-Z0-9][A-Z0-9._-]{0,14}", requiredMode = Schema.RequiredMode.REQUIRED)
         public String codigo;
-
-        @Schema(description = "Oficina existente. CODOFIC en actual.DBF", minimum = "1", maximum = "9999", requiredMode = Schema.RequiredMode.REQUIRED)
-        public Integer oficinaId;
-
-        @Schema(description = "Responsable de la oficina elegida. CODRESP en actual.DBF", minimum = "0", maximum = "99999", requiredMode = Schema.RequiredMode.REQUIRED)
-        public Integer responsableId;
     }
 
     private static final String CAMPOS = """
