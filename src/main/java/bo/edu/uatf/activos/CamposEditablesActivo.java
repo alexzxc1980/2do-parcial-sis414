@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-@Schema(description = "Datos propios del activo en ELABORADO. Envía solamente los que quieras cambiar; los omitidos conservan su valor. El código se indica en la URL. Las asignaciones y los catálogos se conservan.")
 public class CamposEditablesActivo {
     @Schema(description = "Descripción del activo. DESCRIP en actual.DBF", example = "Proyector de aula 4", maxLength = 150)
     public String descripcion;
@@ -36,7 +35,7 @@ public class CamposEditablesActivo {
     @Schema(description = "Número de convenio. NRO_CONV en actual.DBF", example = "", maxLength = 10)
     public String numeroConvenio;
 
-    @Schema(name = "NuevoActivo", description = "Datos propios del activo nuevo. Código, descripción y costo son obligatorios. La oficina, el responsable, el grupo y el auxiliar se toman del último activo registrado, como hasta ahora.", requiredProperties = {"codigo", "descripcion", "costoInicial"})
+    @Schema(name = "NuevoActivo", requiredProperties = {"codigo", "descripcion", "costoInicial"})
     public static class Nuevo extends CamposEditablesActivo {
         @Schema(description = "Código único del activo nuevo. CODIGO en actual.DBF", example = "PROY-004", maxLength = 15, pattern = "[A-Z0-9][A-Z0-9._-]{0,14}", requiredMode = Schema.RequiredMode.REQUIRED)
         public String codigo;

@@ -57,8 +57,7 @@ public class ActivoController {
     @GetMapping
     @ApiResponse(responseCode = "200", description = "Las 33 columnas originales de actual.DBF",
             content = @Content(array = @ArraySchema(schema = @Schema(implementation = RegistroDbf.Fila.class))))
-    @Operation(summary = "Consultar todos los activos de VSIAF",
-            description = "Devuelve las mismas 33 columnas y valores de C:\\vsiaf\\dbfs\\actual.DBF, en el mismo orden. Compara en DBF Viewer ocultando los registros eliminados. DIA, MES y ANO forman la fecha de adquisición (Incorporación en VSIAF). CODOFIC y CODRESP se relacionan con oficina.DBF y resp.DBF; CODCONT y CODAUX con codcont.DBF y auxiliar.DBF. El conector de la laptop debe estar funcionando para recibir y enviar cambios.")
+    @Operation(summary = "Consultar todos los activos de VSIAF")
     public List<?> listar(@Parameter(hidden = true) @RequestParam(defaultValue = "true") boolean detalleDbf,
             @Parameter(hidden = true) @RequestParam(defaultValue = "false") boolean interno) {
         var activos = jdbc.sql(CONSULTA + " ORDER BY a.codigo").query(Asignacion.class).list();
@@ -87,8 +86,7 @@ public class ActivoController {
     @PostMapping
     @ApiResponse(responseCode = "201", description = "Activo creado", content = @Content(schema = @Schema(implementation = ResumenActivo.class)))
     @Transactional
-    @Operation(summary = "Añadir un activo",
-            description = "Completa los datos propios del activo y usa un código nuevo. La oficina, el responsable, el grupo y el auxiliar se toman del último activo registrado, como hasta ahora. FechaAdquisicion usa hoy si se omite. Se crea en ELABORADO. Para cambiar el nombre de una persona usa PUT /api/responsables/{id}; para cambiar el nombre de una oficina usa PUT /api/oficinas/{id}. El conector guarda el activo en VSIAF y GET conserva las 33 columnas originales.")
+    @Operation(summary = "Añadir un activo")
     public ResponseEntity<?> crear(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(schema = @Schema(implementation = CamposEditablesActivo.Nuevo.class),
                     examples = @ExampleObject(value = CamposEditablesActivo.EJEMPLO_CREAR)))
@@ -109,8 +107,7 @@ public class ActivoController {
     @PutMapping("/{codigo}")
     @ApiResponse(responseCode = "200", description = "Activo modificado", content = @Content(schema = @Schema(implementation = ResumenActivo.class)))
     @Transactional
-    @Operation(summary = "Modificar un activo",
-            description = "Introduce el código en la URL y cambia los datos propios del activo. Elimina del JSON los campos que no quieras cambiar: conservarán su valor. La oficina, el responsable, el grupo, el auxiliar y sus reglas contables se conservan. Para cambiar el nombre de una persona usa PUT /api/responsables/{id}; para cambiar el nombre de una oficina usa PUT /api/oficinas/{id}. El activo debe estar en ELABORADO. El conector guarda los cambios en VSIAF.")
+    @Operation(summary = "Modificar un activo")
     public Object modificar(@Parameter(example = "PROY-002") @PathVariable String codigo,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(schema = @Schema(implementation = CamposEditablesActivo.class),
                     examples = @ExampleObject(value = CamposEditablesActivo.EJEMPLO_MODIFICAR)))

@@ -20,7 +20,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api")
-@Tag(name = "Oficinas y responsables", description = "Catálogos de VSIAF. Con el conector de la laptop encendido, las altas, modificaciones y eliminaciones se reflejan en oficina.DBF y resp.DBF, aunque no tengan activos asignados. En VSIAF vuelve a abrir el catálogo para actualizar la pantalla.")
+@Tag(name = "Oficinas y responsables")
 public class CatalogoController {
     public record Oficina(
             @NotNull @Min(1) @Max(9999) @Schema(description = "Código CODOFIC de oficina.DBF", example = "2") Integer id,
@@ -40,14 +40,14 @@ public class CatalogoController {
     }
 
     @GetMapping("/grupos")
-    @Operation(summary = "Consultar los grupos contables y sus opciones de depreciación", description = "Grupos de codcont.DBF usados para clasificar los activos. Este catálogo se consulta sin cambiar sus reglas contables.")
+    @Operation(summary = "Consultar los grupos contables y sus opciones de depreciación")
     public List<Grupos.Grupo> grupos() {
         return grupos.listar();
     }
 
     @GetMapping("/oficinas")
     @ApiResponse(responseCode = "200", description = "Oficinas de VSIAF", content = @Content(array = @ArraySchema(schema = @Schema(implementation = Oficina.class))))
-    @Operation(summary = "Listar oficinas para asignar activos", description = "id corresponde a CODOFIC y nombre a NOMOFIC de oficina.DBF, para entidad 0143 y unidad 1.")
+    @Operation(summary = "Listar oficinas para asignar activos")
     public Object oficinas(@Parameter(hidden = true) @RequestParam(defaultValue = "false") boolean interno) {
         var consulta = jdbc.sql("SELECT id, nombre, revision FROM segundo_parcial.oficina WHERE id > 0 ORDER BY id");
         return interno ? consulta.query().listOfRows() : consulta.query(Oficina.class).list();
@@ -65,7 +65,7 @@ public class CatalogoController {
 
     @GetMapping("/responsables")
     @ApiResponse(responseCode = "200", description = "Responsables de VSIAF", content = @Content(array = @ArraySchema(schema = @Schema(implementation = Responsable.class))))
-    @Operation(summary = "Listar responsables para asignar activos", description = "id, nombre, cargo y oficinaId corresponden a CODRESP, NOMRESP, CARGO y CODOFIC de resp.DBF, para entidad 0143 y unidad 1.")
+    @Operation(summary = "Listar responsables para asignar activos")
     public Object responsables(@Parameter(hidden = true) @RequestParam(defaultValue = "false") boolean interno) {
         var consulta = jdbc.sql(RESPONSABLES + " WHERE r.id >= 0 ORDER BY r.id");
         return interno ? consulta.query().listOfRows() : consulta.query(Responsable.class).list();
@@ -73,7 +73,7 @@ public class CatalogoController {
 
     @PostMapping("/responsables")
     @Transactional
-    @Operation(summary = "Registrar un responsable con un código nuevo", description = "Crea un responsable en la oficina indicada. No cambia la asignación de los activos existentes.")
+    @Operation(summary = "Registrar un responsable con un código nuevo")
     public ResponseEntity<Responsable> responsable(@Valid @RequestBody Responsable responsable) {
         int oficina = oficinaValida(responsable.oficinaId());
         var limpio = new Responsable(responsable.id(), responsable.nombre().strip(), responsable.cargo().strip(), oficina);
@@ -85,8 +85,8 @@ public class CatalogoController {
 
     @PutMapping("/oficinas/{id}")
     @Transactional
-    @Operation(summary = "Modificar el nombre de una oficina", description = "Pulsa Try it out y escribe el ID de la oficina: se cargarán sus datos actuales. Cambia nombre, conserva id y pulsa Execute para guardar.")
-    public Oficina modificarOficina(@Parameter(description = "ID de la oficina que quieres modificar. Al escribirlo se cargan sus datos actuales.") @PathVariable int id,
+    @Operation(summary = "Modificar el nombre de una oficina")
+    public Oficina modificarOficina(@PathVariable int id,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @io.swagger.v3.oas.annotations.media.ExampleObject(value = "{}")))
             @Valid @RequestBody Oficina o,
             @Parameter(hidden = true) @RequestHeader(value = "If-Match", required = false) String revision) {
@@ -100,8 +100,8 @@ public class CatalogoController {
 
     @PutMapping("/responsables/{id}")
     @Transactional
-    @Operation(summary = "Modificar el nombre y cargo de un responsable", description = "Pulsa Try it out y escribe el ID del responsable: se cargarán sus datos actuales. Cambia nombre o cargo, conserva id y oficinaId, y pulsa Execute para guardar. La oficina se conserva si se omite oficinaId.")
-    public Responsable modificarResponsable(@Parameter(description = "ID del responsable que quieres modificar. Al escribirlo se cargan sus datos actuales.") @PathVariable int id,
+    @Operation(summary = "Modificar el nombre y cargo de un responsable")
+    public Responsable modificarResponsable(@PathVariable int id,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @io.swagger.v3.oas.annotations.media.ExampleObject(value = "{}")))
             @Valid @RequestBody Responsable r,
             @Parameter(hidden = true) @RequestHeader(value = "If-Match", required = false) String revision) {
@@ -119,7 +119,7 @@ public class CatalogoController {
 
     @DeleteMapping("/responsables/{id}")
     @Transactional
-    @Operation(summary = "Eliminar un responsable sin activos asignados", description = "El conector marca el registro como eliminado en resp.DBF. No se borran sus activos: si todavía tiene alguno asignado, devuelve 409.")
+    @Operation(summary = "Eliminar un responsable sin activos asignados")
     @ApiResponse(responseCode = "204", description = "Responsable eliminado")
     @ApiResponse(responseCode = "409", description = "El responsable todavía tiene activos asignados")
     public ResponseEntity<Void> eliminarResponsable(@PathVariable int id,
@@ -133,7 +133,7 @@ public class CatalogoController {
 
     @DeleteMapping("/oficinas/{id}")
     @Transactional
-    @Operation(summary = "Eliminar una oficina sin responsables ni activos", description = "El conector marca el registro como eliminado en oficina.DBF. Si tiene responsables o activos relacionados, devuelve 409 y conserva los datos.")
+    @Operation(summary = "Eliminar una oficina sin responsables ni activos")
     @ApiResponse(responseCode = "204", description = "Oficina eliminada")
     @ApiResponse(responseCode = "409", description = "La oficina todavía tiene responsables o activos")
     public ResponseEntity<Void> eliminarOficina(@PathVariable int id,

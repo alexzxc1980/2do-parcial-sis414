@@ -59,7 +59,7 @@ function CatalogosReales(system) {
     const oyentes = new Map();
     const React = system.React;
     const corresponde = (ruta, metodo) => metodo === 'put' && rutas.has(ruta);
-    const actual = ruta => estados.get(ruta) || {mensaje: 'Pulsa Try it out y escribe el ID para cargar sus datos actuales.', listo: false};
+    const actual = ruta => estados.get(ruta) || {mensaje: '', listo: false};
     function avisar(ruta, datos) {
         estados.set(ruta, {...actual(ruta), ...datos});
         for (const avisar of oyentes.get(ruta) || []) avisar();
@@ -77,7 +77,7 @@ function CatalogosReales(system) {
         const id = String(valor ?? '').trim();
         const control = new AbortController();
         cuerpo(ruta, '{}');
-        avisar(ruta, {id, control, listo: false, mensaje: id ? 'Cargando los datos actuales…' : 'Escribe el ID arriba para cargar sus datos actuales.'});
+        avisar(ruta, {id, control, listo: false, mensaje: id ? 'Cargando…' : ''});
         if (!/^\d+$/.test(id) || Number(id) > (ruta.includes('responsables') ? 99999 : 9999) || (ruta.includes('oficinas') && Number(id) < 1)) {
             if (id) avisar(ruta, {mensaje: 'Escribe un ID válido.'});
             return;
@@ -97,7 +97,7 @@ function CatalogosReales(system) {
                     throw new Error('El texto cambió durante la carga. Pulsa Volver a cargar para recuperar los datos actuales.');
                 }
                 cuerpo(ruta, JSON.stringify(registro, null, 2));
-                avisar(ruta, {listo: true, mensaje: 'Datos actuales de ' + registro.nombre + '. Edita ' + (ruta.includes('responsables') ? 'nombre o cargo; conserva id y oficinaId.' : 'nombre; conserva id.') + ' Pulsa Execute para guardar.'});
+                avisar(ruta, {listo: true, mensaje: ''});
             } catch (error) {
                 if (!control.signal.aborted && actual(ruta).control === control) avisar(ruta, {listo: false, mensaje: error.message});
             }
@@ -120,7 +120,7 @@ function CatalogosReales(system) {
                 if (this.props.tryItOutEnabled) this.iniciar();
                 else {
                     detener(this.ruta);
-                    avisar(this.ruta, {activo: false, listo: false, mensaje: 'Pulsa Try it out para volver a cargar los datos.'});
+                    avisar(this.ruta, {activo: false, listo: false, mensaje: ''});
                 }
             }
             componentWillUnmount() {
@@ -140,9 +140,9 @@ function CatalogosReales(system) {
                 const estado = actual(ruta);
                 if (tipo === 'execute') return React.createElement(Original, {...this.props, disabled: this.props.disabled || !estado.listo});
                 return React.createElement(React.Fragment, null,
-                    React.createElement('div', {role: 'status', 'aria-live': 'polite', style: {padding: '12px 20px', color: '#17354d', background: '#e8f4ff'}},
+                    estado.mensaje ? React.createElement('div', {role: 'status', 'aria-live': 'polite', style: {padding: '12px 20px'}},
                         estado.mensaje,
-                        this.props.tryItOutEnabled && !estado.listo && estado.id ? React.createElement('button', {type: 'button', className: 'btn', style: {marginLeft: '12px'}, onClick: () => cargar(ruta, estado.id)}, 'Volver a cargar') : null),
+                        this.props.tryItOutEnabled && !estado.listo && estado.id ? React.createElement('button', {type: 'button', className: 'btn', style: {marginLeft: '12px'}, onClick: () => cargar(ruta, estado.id)}, 'Volver a cargar') : null) : null,
                     React.createElement(Original, {...this.props, onResetClick: () => cargar(ruta, estado.id)}));
             }
         };
