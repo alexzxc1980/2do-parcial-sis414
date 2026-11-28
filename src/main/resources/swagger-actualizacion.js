@@ -54,7 +54,11 @@ function SeguimientoActivos() {
 }
 
 function CatalogosReales(system) {
-    const rutas = new Set(['/api/responsables/{id}', '/api/oficinas/{id}']);
+    const activos = '/api/activos/{codigo}';
+    const rutas = new Set(['/api/responsables/{id}', '/api/oficinas/{id}', activos]);
+    const parametroRuta = ruta => ruta === activos ? 'codigo' : 'id';
+    const camposActivo = ['descripcion', 'codigoAdicional', 'fechaAdquisicion', 'estadoActivo', 'observaciones',
+        'costoInicial', 'depreciacionInicial', 'vidaUtil', 'rube', 'numeroConvenio'];
     const estados = new Map();
     const oyentes = new Map();
     const React = system.React;
@@ -78,25 +82,31 @@ function CatalogosReales(system) {
         const control = new AbortController();
         cuerpo(ruta, '{}');
         avisar(ruta, {id, control, listo: false, mensaje: id ? 'Cargando…' : ''});
-        if (!/^\d+$/.test(id) || Number(id) > (ruta.includes('responsables') ? 99999 : 9999) || (ruta.includes('oficinas') && Number(id) < 1)) {
-            if (id) avisar(ruta, {mensaje: 'Escribe un ID válido.'});
+        const valido = ruta === activos ? /^[A-Z0-9][A-Z0-9._-]{0,14}$/.test(id)
+            : /^\d+$/.test(id) && Number(id) <= (ruta.includes('responsables') ? 99999 : 9999) && (!ruta.includes('oficinas') || Number(id) >= 1);
+        if (!valido) {
+            if (id) avisar(ruta, {mensaje: ruta === activos ? 'Escribe un código válido.' : 'Escribe un ID válido.'});
             return;
         }
         const temporizador = setTimeout(async () => {
             try {
                 const servidor = system.oas3Selectors.selectedServer();
                 const base = servidor ? system.oas3Selectors.serverEffectiveValue(servidor) : window.location.origin;
-                const url = new URL(base.replace(/\/$/, '') + ruta.replace('/{id}', ''), window.location.href);
+                const consulta = ruta === activos ? ruta.replace('{codigo}', encodeURIComponent(id)) + '?interno=true' : ruta.replace('/{id}', '');
+                const url = new URL(base.replace(/\/$/, '') + consulta, window.location.href);
                 const respuesta = await fetch(url, {signal: control.signal, cache: 'no-store', headers: {Accept: 'application/json'}});
+                if (ruta === activos && respuesta.status === 404) throw new Error('No existe el activo ' + id + '.');
                 if (!respuesta.ok) throw new Error('No se pudieron consultar los datos. Vuelve a cargar.');
                 const registros = await respuesta.json();
                 if (control.signal.aborted || actual(ruta).control !== control) return;
-                const registro = registros.find(fila => fila.id === Number(id));
+                const registro = ruta === activos ? registros : registros.find(fila => fila.id === Number(id));
                 if (!registro) throw new Error('No existe un registro con el ID ' + id + '. Revisa el ID.');
                 if (system.oas3Selectors.requestBodyValue(ruta, 'put') !== '{}') {
                     throw new Error('El texto cambió durante la carga. Pulsa Volver a cargar para recuperar los datos actuales.');
                 }
-                cuerpo(ruta, JSON.stringify(registro, null, 2));
+                const editable = ruta === activos ? Object.fromEntries(camposActivo.map(campo =>
+                    [campo, registro[campo === 'fechaAdquisicion' ? 'fechaIncorporacion' : campo]])) : registro;
+                cuerpo(ruta, JSON.stringify(editable, null, 2));
                 avisar(ruta, {listo: true, mensaje: ''});
             } catch (error) {
                 if (!control.signal.aborted && actual(ruta).control === control) avisar(ruta, {listo: false, mensaje: error.message});
@@ -132,7 +142,7 @@ function CatalogosReales(system) {
             }
             iniciar() {
                 avisar(this.ruta, {activo: true});
-                cargar(this.ruta, system.specSelectors.parameterValues([this.ruta, 'put']).get('path.id'));
+                cargar(this.ruta, system.specSelectors.parameterValues([this.ruta, 'put']).get('path.' + parametroRuta(this.ruta)));
             }
             render() {
                 const ruta = this.props.pathMethod?.[0] || this.props.path;
@@ -157,7 +167,7 @@ function CatalogosReales(system) {
                 wrapActions: {
                     changeParamByIdentity: original => (pathMethod, parametro, valor, ...otros) => {
                         const resultado = original(pathMethod, parametro, valor, ...otros);
-                        if (corresponde(...pathMethod) && parametro.get('name') === 'id' && parametro.get('in') === 'path' && actual(pathMethod[0]).activo) cargar(pathMethod[0], valor);
+                        if (corresponde(...pathMethod) && parametro.get('name') === parametroRuta(pathMethod[0]) && parametro.get('in') === 'path' && actual(pathMethod[0]).activo) cargar(pathMethod[0], valor);
                         return resultado;
                     }
                 }

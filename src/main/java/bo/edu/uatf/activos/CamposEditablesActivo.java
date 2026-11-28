@@ -54,5 +54,4 @@ public class CamposEditablesActivo {
             "numeroConvenio": ""
             """;
     public static final String EJEMPLO_CREAR = "{\"codigo\":\"PROY-004\"," + CAMPOS + "}";
-    public static final String EJEMPLO_MODIFICAR = "{" + CAMPOS + "}";
 }

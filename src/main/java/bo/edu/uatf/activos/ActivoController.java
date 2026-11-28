@@ -108,9 +108,9 @@ public class ActivoController {
     @ApiResponse(responseCode = "200", description = "Activo modificado", content = @Content(schema = @Schema(implementation = ResumenActivo.class)))
     @Transactional
     @Operation(summary = "Modificar un activo")
-    public Object modificar(@Parameter(example = "PROY-002") @PathVariable String codigo,
+    public Object modificar(@PathVariable String codigo,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(schema = @Schema(implementation = CamposEditablesActivo.class),
-                    examples = @ExampleObject(value = CamposEditablesActivo.EJEMPLO_MODIFICAR)))
+                    examples = @ExampleObject(value = "{}")))
             @RequestBody Map<String, Object> datos,
             @Parameter(hidden = true) @RequestHeader(value = "If-Match", required = false) String revision,
             @Parameter(hidden = true) @RequestParam(defaultValue = "false") boolean interno) {
