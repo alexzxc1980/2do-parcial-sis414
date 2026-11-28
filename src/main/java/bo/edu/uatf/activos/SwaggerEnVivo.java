@@ -26,7 +26,7 @@ public class SwaggerEnVivo extends SwaggerIndexPageTransformer {
         if (!"swagger-initializer.js".equals(resource.getFilename())) return original;
         try (var entrada = original.getInputStream(); var script = getClass().getResourceAsStream("/swagger-actualizacion.js")) {
             var contenido = new String(entrada.readAllBytes(), StandardCharsets.UTF_8)
-                    .replace("SwaggerUIBundle.plugins.DownloadUrl", "SeguimientoActivos, CatalogosReales, SwaggerUIBundle.plugins.DownloadUrl");
+                    .replace("SwaggerUIBundle.plugins.DownloadUrl", "SeguimientoActivos, CatalogosReales, AsignacionNuevoActivo, SwaggerUIBundle.plugins.DownloadUrl");
             var plugin = new String(script.readAllBytes(), StandardCharsets.UTF_8);
             return new TransformedResource(resource, (plugin + "\n" + contenido).getBytes(StandardCharsets.UTF_8));
         }

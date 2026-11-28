@@ -184,3 +184,139 @@ function CatalogosReales(system) {
         }
     };
 }
+
+function AsignacionNuevoActivo(system) {
+    const ruta = '/api/activos';
+    const React = system.React;
+    const oyentes = new Set();
+    let estado = {oficinas: [], responsables: [], cargando: false, cargado: false, error: '', activo: false};
+    let control;
+    const corresponde = props => (props.pathMethod?.[0] || props.path) === ruta && (props.pathMethod?.[1] || props.method) === 'post';
+    function avisar(cambios = {}) {
+        estado = {...estado, ...cambios};
+        for (const avisar of oyentes) avisar();
+    }
+    function cuerpo() {
+        try {
+            const datos = JSON.parse(system.oas3Selectors.requestBodyValue(ruta, 'post'));
+            return datos && typeof datos === 'object' && !Array.isArray(datos) ? datos : null;
+        } catch { return null; }
+    }
+    function elegir(campo, valor) {
+        const datos = cuerpo();
+        if (!datos) return;
+        datos[campo] = valor === '' ? null : Number(valor);
+        if (campo === 'oficinaId') datos.responsableId = null;
+        system.oas3Actions.setRequestBodyValue({pathMethod: [ruta, 'post'], value: JSON.stringify(datos, null, 2)});
+    }
+    function seleccionValida(datos) {
+        return estado.cargado && !estado.cargando && !estado.error && datos
+            && estado.oficinas.some(o => o.id === datos.oficinaId)
+            && estado.responsables.some(r => r.id === datos.responsableId && r.oficinaId === datos.oficinaId);
+    }
+    async function cargar() {
+        control?.abort();
+        const peticion = control = new AbortController();
+        avisar({cargando: true, cargado: false, error: ''});
+        try {
+            const servidor = system.oas3Selectors.selectedServer();
+            const base = servidor ? system.oas3Selectors.serverEffectiveValue(servidor) : window.location.origin;
+            const consultar = async catalogo => {
+                const url = new URL(base.replace(/\/$/, '') + '/api/' + catalogo, window.location.href);
+                const respuesta = await fetch(url, {signal: peticion.signal, cache: 'no-store', headers: {Accept: 'application/json'}});
+                if (!respuesta.ok) throw new Error('No se pudieron cargar las oficinas y los responsables.');
+                const datos = await respuesta.json();
+                if (!Array.isArray(datos)) throw new Error('No se pudieron cargar las oficinas y los responsables.');
+                return datos;
+            };
+            const [oficinas, responsables] = await Promise.all([consultar('oficinas'), consultar('responsables')]);
+            if (!peticion.signal.aborted && control === peticion) avisar({oficinas, responsables, cargando: false, cargado: true});
+        } catch (error) {
+            if (!peticion.signal.aborted && control === peticion) avisar({cargando: false, cargado: false, error: error.message});
+        }
+    }
+    function envolver(Original, tipo) {
+        return class extends React.Component {
+            componentDidMount() {
+                if (!corresponde(this.props)) return;
+                this.aviso = () => this.forceUpdate();
+                oyentes.add(this.aviso);
+                if (tipo === 'parameters' && this.props.tryItOutEnabled) this.iniciar();
+            }
+            componentDidUpdate(anterior) {
+                if (!corresponde(this.props) || tipo !== 'parameters' || anterior.tryItOutEnabled === this.props.tryItOutEnabled) return;
+                if (this.props.tryItOutEnabled) this.iniciar();
+                else {
+                    control?.abort();
+                    avisar({activo: false, cargando: false, cargado: false});
+                }
+            }
+            componentWillUnmount() {
+                oyentes.delete(this.aviso);
+                if (corresponde(this.props) && tipo === 'parameters') {
+                    control?.abort();
+                    avisar({activo: false, cargando: false, cargado: false});
+                }
+            }
+            iniciar() {
+                avisar({activo: true});
+                cargar();
+            }
+            render() {
+                if (!corresponde(this.props)) return React.createElement(Original, this.props);
+                const datos = cuerpo();
+                if (tipo === 'execute') return React.createElement(Original, {...this.props, disabled: this.props.disabled || !seleccionValida(datos)});
+                const original = React.createElement(Original, this.props);
+                if (!this.props.tryItOutEnabled) return original;
+                const oficina = estado.oficinas.find(o => o.id === datos?.oficinaId);
+                const responsables = oficina ? estado.responsables.filter(r => r.oficinaId === oficina.id) : [];
+                const responsable = responsables.find(r => r.id === datos?.responsableId);
+                const mensaje = estado.cargando ? 'Cargando…' : estado.error || (!datos ? 'Revisa el formato del JSON.'
+                    : estado.cargado && !estado.oficinas.length ? 'Registra una oficina en POST /api/oficinas.'
+                    : oficina && !responsables.length ? 'Registra un responsable para esta oficina en POST /api/responsables.'
+                    : datos.responsableId != null && !responsable ? 'Selecciona un responsable de esta oficina.' : '');
+                const deshabilitado = estado.cargando || !estado.cargado || !datos;
+                const selector = (campo, titulo, filas, elegido, deshabilitado) => React.createElement('label',
+                    {htmlFor: 'nuevo-activo-' + campo, style: {display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '240px', flex: 1}},
+                    titulo,
+                    React.createElement('select', {id: 'nuevo-activo-' + campo, value: elegido ? String(elegido.id) : '', disabled: deshabilitado,
+                        onChange: evento => elegir(campo, evento.target.value), style: {width: '100%', maxWidth: '100%'}},
+                        React.createElement('option', {value: ''}, 'Selecciona ' + titulo.toLowerCase()),
+                        ...filas.map(fila => React.createElement('option', {key: fila.id, value: String(fila.id)}, fila.nombre + ' (' + fila.id + ')'))));
+                return React.createElement(React.Fragment, null, original,
+                    React.createElement('div', {style: {padding: '16px 20px'}},
+                        React.createElement('div', {style: {display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'end'}},
+                            selector('oficinaId', 'Oficina', estado.oficinas, oficina, deshabilitado),
+                            selector('responsableId', 'Responsable', responsables, responsable, deshabilitado || !oficina),
+                            React.createElement('button', {type: 'button', className: 'btn', disabled: estado.cargando, onClick: cargar}, 'Actualizar listas')),
+                        mensaje ? React.createElement('div', {role: 'status', 'aria-live': 'polite', style: {paddingTop: '12px'}}, mensaje) : null));
+            }
+        };
+    }
+    return {
+        wrapComponents: {
+            parameters: Original => envolver(Original, 'parameters'),
+            execute: Original => envolver(Original, 'execute')
+        },
+        statePlugins: {
+            oas3: {
+                wrapActions: {
+                    setRequestBodyValue: original => datos => {
+                        const resultado = original(datos);
+                        if (datos.pathMethod?.[0] === ruta && datos.pathMethod?.[1] === 'post') avisar();
+                        return resultado;
+                    },
+                    setSelectedServer: original => (...args) => {
+                        const resultado = original(...args);
+                        if (estado.activo) {
+                            const datos = cuerpo();
+                            if (datos) system.oas3Actions.setRequestBodyValue({pathMethod: [ruta, 'post'], value: JSON.stringify({...datos, oficinaId: null, responsableId: null}, null, 2)});
+                            cargar();
+                        }
+                        return resultado;
+                    }
+                }
+            }
+        }
+    };
+}

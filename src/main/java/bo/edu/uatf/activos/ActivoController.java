@@ -92,8 +92,24 @@ public class ActivoController {
                     examples = @ExampleObject(value = CamposEditablesActivo.EJEMPLO_CREAR)))
             @RequestBody Map<String, Object> datos,
             @Parameter(hidden = true) @RequestParam(defaultValue = "false") boolean interno) {
+        if (!interno) {
+            if (datos.get("oficinaId") == null || datos.get("responsableId") == null)
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selecciona una oficina y un responsable para el activo");
+            if (datos.containsKey("responsable") || datos.containsKey("oficina") || datos.containsKey("cargo"))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selecciona oficinaId y responsableId; los nombres se editan en Oficinas y responsables");
+        }
         var activo = completar(datos, null, null);
         validar(activo);
+        if (!interno) {
+            var oficina = jdbc.sql("""
+                    SELECT COALESCE(r.oficina_id,
+                        (SELECT MIN(a.oficina_id) FROM segundo_parcial.activo a WHERE a.responsable_id = r.id),
+                        (SELECT MIN(o.id) FROM segundo_parcial.oficina o WHERE o.id > 0))
+                    FROM segundo_parcial.responsable r WHERE r.id = :id FOR SHARE OF r
+                    """).param("id", activo.responsableId()).query(Integer.class).single();
+            if (!activo.oficinaId().equals(oficina))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El responsable no pertenece a la oficina seleccionada");
+        }
         var p = parametros(activo);
         var columnas = String.join(", ", p.keySet());
         var valores = p.keySet().stream().map(k -> ":" + k).toList();
