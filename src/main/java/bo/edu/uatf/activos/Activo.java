@@ -9,7 +9,7 @@ public record Activo(
         @NotBlank @Pattern(regexp = "[A-Z0-9][A-Z0-9._-]{0,14}") @Schema(example = "PROY-003") String codigo,
         @NotBlank @Size(max = 150) @Schema(example = "Proyector de laboratorio") String descripcion,
         @NotNull @Positive @Schema(example = "1") Integer oficinaId,
-        @NotNull @Positive @Schema(example = "2") Integer responsableId,
+        @NotNull @Min(0) @Schema(example = "2") Integer responsableId,
         @Size(max = 15) @Schema(example = "") String codigoAdicional,
         @NotNull @Schema(example = "2026-11-26") LocalDate fechaIncorporacion,
         @NotBlank @Size(max = 50) @Schema(example = "MUEBLES Y ENSERES DE OFICINA") String grupo,

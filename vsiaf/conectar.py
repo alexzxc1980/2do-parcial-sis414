@@ -59,6 +59,12 @@ class FoxPro:
     def leer(self):
         return {a['codigo']: a for a in self.enviar({'accion': 'leer'})}
 
+    def responsables(self):
+        return self.enviar({'accion': 'responsables'})
+
+    def consulta(self, activos):
+        return self.enviar({'accion': 'consulta', 'activos': list(activos.values())})
+
     def guardar(self, codigo, activo, anterior):
         self.enviar({'accion': 'guardar', 'codigo': codigo, 'activo': activo, 'anterior': anterior})
         resultado = self.leer().get(codigo)
@@ -79,6 +85,8 @@ class Api:
         self.url = url.rstrip('/')
 
     def pedir(self, ruta, metodo='GET', cuerpo=None, revision=None):
+        if ruta.startswith('/api/activos') and not ruta.endswith('/dbf'):
+            ruta += ('&' if '?' in ruta else '?') + 'interno=true'
         encabezados = {'Accept': 'application/json'}
         datos = None
         if cuerpo is not None:
@@ -135,6 +143,8 @@ class Conexion:
         self.archivo = Path(archivo)
         self.estado = json.loads(self.archivo.read_text(encoding='utf-8')) if self.archivo.exists() else {'deseado': {}, 'visto': {}}
         self.ultimo_aviso = {}
+        self.detalles_confirmados = {}
+        self.ultima_consulta = None
 
     def guardar_estado(self):
         self.archivo.parent.mkdir(parents=True, exist_ok=True)
@@ -157,6 +167,13 @@ class Conexion:
                 self.aviso(nombre, nombre + ': ' + str(error))
         if 'FoxPro' not in fotos:
             return
+        consulta = json.dumps({k: normalizar(v) for k, v in fotos['FoxPro'].items()}, sort_keys=True, ensure_ascii=False)
+        if consulta != self.ultima_consulta:
+            try:
+                self.fuentes['FoxPro'].consulta(fotos['FoxPro'])
+                self.ultima_consulta = consulta
+            except Exception as error:
+                self.aviso('consulta', 'Tabla de consulta: ' + str(error))
         codigos = set(self.estado['deseado'])
         for foto in fotos.values():
             codigos.update(foto)
@@ -198,6 +215,24 @@ class Conexion:
                     self.guardar_estado()
                 except Exception as error:
                     self.aviso(codigo + nombre, codigo + ' en ' + nombre + ': ' + str(error))
+            nativo = fotos['FoxPro'].get(codigo)
+            if nativo is None or firma(nativo) != firma(objetivo) or '_dbf' not in nativo:
+                continue
+            for nombre, fuente in self.fuentes.items():
+                copia = fotos.get(nombre, {}).get(codigo)
+                if not isinstance(fuente, Api) or copia is None or firma(copia) != firma(nativo):
+                    continue
+                version = (copia['revision'], json.dumps(nativo['_dbf'], sort_keys=True, ensure_ascii=False))
+                clave = (nombre, codigo)
+                if self.detalles_confirmados.get(clave) == version:
+                    continue
+                try:
+                    fuente.pedir('/api/activos/' + urllib.parse.quote(codigo, safe='') + '/dbf',
+                                 'PUT', nativo['_dbf'], revision=copia['revision'])
+                    self.detalles_confirmados[clave] = version
+                    self.ultimo_aviso.pop(codigo + nombre + 'dbf', None)
+                except Exception as error:
+                    self.aviso(codigo + nombre + 'dbf', codigo + ': detalle DBF pendiente en ' + nombre + ': ' + str(error))
 
 
 def main():

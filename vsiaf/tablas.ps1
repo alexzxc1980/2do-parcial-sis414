@@ -68,11 +68,82 @@ WHERE ALLTRIM(a.entidad)='0143' AND ALLTRIM(a.unidad)='1'
             $n[$campo] = $v
         }
         $a['_native'] = $n
+        $dbf = [ordered]@{}
+        foreach ($campo in 'UNIDAD ENTIDAD CODIGO CODCONT CODAUX VIDAUTIL DESCRIP COSTO DEPACU MES ANO B_REV DIA CODOFIC CODRESP OBSERV DIA_ANT MES_ANT ANO_ANT VUT_ANT COSTO_ANT BAND_UFV CODESTADO COD_RUBE NRO_CONV ORG_FIN FEULT USUAR API_ESTADO CODIGOSEC BANDERAS FEC_MOD USU_MOD'.Split(' ')) {
+            $v = $r[$campo]
+            if ($v -is [DBNull]) { $v = $null }
+            elseif ($v -is [datetime]) { $v = $v.ToString('yyyy-MM-dd') }
+            elseif ($v -is [string]) { $v = $v.TrimEnd() }
+            $dbf[$campo] = $v
+        }
+        $a['_dbf'] = $dbf
         $resultado += [pscustomobject]$a
     }
     if ($antes -ne (Versiones)) { throw 'FoxPro está guardando datos; se reintentará la lectura' }
     if (@($resultado.codigo | Sort-Object -Unique).Count -ne $resultado.Count) { throw 'Hay códigos duplicados en FoxPro' }
     return ,$resultado
+}
+
+function Responsables {
+    $tabla = Filas @'
+SELECT r.codresp, r.nomresp, r.cargo, r.codofic, o.nomofic
+FROM resp r LEFT JOIN oficina o ON r.entidad=o.entidad AND r.unidad=o.unidad AND r.codofic=o.codofic
+WHERE ALLTRIM(r.entidad)='0143' AND ALLTRIM(r.unidad)='1' AND !EMPTY(r.nomresp) AND !EMPTY(o.nomofic)
+ORDER BY r.nomresp
+'@
+    $resultado = @()
+    foreach ($r in $tabla.Rows) {
+        $resultado += [pscustomobject]@{responsableId=[int]$r.CODRESP; responsable=(Texto $r.NOMRESP); cargo=(Texto $r.CARGO); oficinaId=[int]$r.CODOFIC; oficina=(Texto $r.NOMOFIC)}
+    }
+    return ,$resultado
+}
+
+function Consulta($activos) {
+    $carpeta = Join-Path (Split-Path -Parent $Directorio) 'consulta'
+    [void](New-Item -ItemType Directory -Path $carpeta -Force)
+    $archivo = Literal (Join-Path $carpeta 'activos.dbf')
+    $script = [Collections.Generic.List[string]]::new()
+    $script.Add(@"
+CLOSE TABLES ALL
+SET EXCLUSIVE OFF
+SET MULTILOCKS ON
+SET DELETED OFF
+SET REPROCESS TO 1 SECONDS
+IF !FILE($archivo)
+    CREATE TABLE ($archivo) FREE (CODIGO C(15) NOT NULL, DESCRIP C(150) NOT NULL, COSTO N(15,2) NOT NULL, VIDAUTIL N(6,2) NOT NULL, FECHA D NOT NULL, ESTADO C(10) NOT NULL, ENCARGADO C(35) NOT NULL)
+    USE
+ENDIF
+USE ($archivo) SHARED IN 0 ALIAS consulta
+IF !FLOCK('consulta')
+    RETURN 'ERROR: Cierra la edición de la tabla de consulta'
+ENDIF
+IF !MAKETRANSACTABLE('consulta')
+    RETURN 'ERROR: No se pudo abrir la tabla de consulta'
+ENDIF
+BEGIN TRANSACTION
+SELECT consulta
+DELETE ALL
+"@)
+    foreach ($a in $activos) {
+        $codigo = Literal $a.codigo
+        $script.Add("LOCATE FOR ALLTRIM(CODIGO)==$codigo")
+        $script.Add("IF !FOUND()`r`nAPPEND BLANK`r`nELSE`r`nRECALL`r`nENDIF")
+        $fecha = [datetime]::ParseExact($a.fechaIncorporacion,'yyyy-MM-dd',[Globalization.CultureInfo]::InvariantCulture)
+        $valores = [ordered]@{CODIGO=$a.codigo;DESCRIP=$a.descripcion;COSTO=$a.costoInicial;VIDAUTIL=$a.vidaUtil;ESTADO=$a.estadoActivo;ENCARGADO=$a.responsable}
+        $asignaciones = @($valores.Keys | ForEach-Object { $_ + ' WITH ' + (Literal $valores[$_]) })
+        $script.Add('REPLACE '+($asignaciones -join ',')+',FECHA WITH DATE('+$fecha.Year+','+$fecha.Month+','+$fecha.Day+')')
+    }
+    $script.Add("END TRANSACTION`r`nFLUSH`r`nUNLOCK ALL`r`nCLOSE TABLES ALL`r`nSET DELETED ON`r`nRETURN 'OK'")
+    $cmd = $conexion.CreateCommand()
+    $cmd.CommandText = 'EXECSCRIPT(?)'
+    [void]$cmd.Parameters.Add('script',[System.Data.OleDb.OleDbType]::LongVarChar)
+    $cmd.Parameters[0].Value = $script -join "`r`n"
+    try { $resultado = $cmd.ExecuteScalar(); if ($resultado -ne 'OK') { throw $resultado } }
+    finally {
+        $cmd.Parameters[0].Value = "IF TXNLEVEL()>0`r`nROLLBACK`r`nENDIF`r`nUNLOCK ALL`r`nCLOSE TABLES ALL`r`nSET DELETED ON`r`nRETURN .T."
+        try { [void]$cmd.ExecuteScalar() } finally { $cmd.Dispose() }
+    }
+    return 'OK'
 }
 
 function Guardar($peticion) {
@@ -218,6 +289,8 @@ try {
             $peticion = $linea | ConvertFrom-Json
             if ($peticion.accion -eq 'leer') { $datos = Leer }
             elseif ($peticion.accion -eq 'guardar') { $datos = Guardar $peticion }
+            elseif ($peticion.accion -eq 'responsables') { $datos = Responsables }
+            elseif ($peticion.accion -eq 'consulta') { $datos = Consulta $peticion.activos }
             else { throw 'Operación desconocida' }
             $salida = @{ok=$true; resultado=$datos}
         } catch { $salida = @{ok=$false; error=$_.Exception.Message} }

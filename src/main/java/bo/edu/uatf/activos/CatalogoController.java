@@ -1,6 +1,7 @@
 package bo.edu.uatf.activos;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
@@ -14,11 +15,12 @@ import java.net.URI;
 import java.util.List;
 
 @RestController
+@Hidden
 @RequestMapping("/api")
 @Tag(name = "Oficinas y responsables")
 public class CatalogoController {
     public record Oficina(@NotNull @Min(1) @Max(9999) Integer id, @NotBlank @Size(max = 65) String nombre) { }
-    public record Responsable(@NotNull @Min(1) @Max(99999) Integer id,
+    public record Responsable(@NotNull @Min(0) @Max(99999) Integer id,
             @NotBlank @Size(max = 35) String nombre, @NotBlank @Size(max = 35) String cargo) { }
     private final JdbcClient jdbc;
     private final Grupos grupos;
@@ -46,7 +48,7 @@ public class CatalogoController {
     @GetMapping("/responsables")
     @Operation(summary = "Listar responsables para asignar activos")
     public List<Responsable> responsables() {
-        return jdbc.sql("SELECT id, nombre, cargo FROM segundo_parcial.responsable WHERE id > 0 ORDER BY id")
+        return jdbc.sql("SELECT id, nombre, cargo FROM segundo_parcial.responsable WHERE id >= 0 ORDER BY id")
                 .query(Responsable.class).list();
     }
 

@@ -41,3 +41,7 @@ ALTER TABLE segundo_parcial.activo
 
 ALTER TABLE segundo_parcial.activo ALTER COLUMN oficina_id DROP NOT NULL;
 ALTER TABLE segundo_parcial.activo ALTER COLUMN responsable_id DROP NOT NULL;
+
+ALTER TABLE segundo_parcial.activo
+    ADD COLUMN IF NOT EXISTS registro_dbf JSONB,
+    ADD COLUMN IF NOT EXISTS dbf_revision BIGINT;

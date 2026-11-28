@@ -10,6 +10,14 @@ import java.util.LinkedHashMap;
 
 @RestControllerAdvice
 public class Errores {
+    @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
+    public ProblemDetail restricciones(jakarta.validation.ConstraintViolationException error) {
+        var problema = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Revisa los campos del activo");
+        var campos = new LinkedHashMap<String, String>();
+        error.getConstraintViolations().forEach(e -> campos.put(e.getPropertyPath().toString(), e.getMessage()));
+        problema.setProperty("campos", campos);
+        return problema;
+    }
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail conflicto(DataIntegrityViolationException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
