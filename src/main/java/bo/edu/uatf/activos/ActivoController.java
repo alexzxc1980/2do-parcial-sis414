@@ -88,7 +88,7 @@ public class ActivoController {
     @ApiResponse(responseCode = "201", description = "Activo creado", content = @Content(schema = @Schema(implementation = ResumenActivo.class)))
     @Transactional
     @Operation(summary = "Añadir un activo",
-            description = "El ejemplo muestra todos los campos admitidos para el alta. Usa un código nuevo. Puedes usar responsableId o responsable; si envías ambos deben coincidir y pertenecer a oficinaId. Consulta los códigos en GET /api/oficinas y GET /api/responsables. Al cambiar grupo, depreciar y actualizar deben coincidir con GET /api/grupos. Los datos administrativos omitidos se toman del último activo y fechaAdquisicion usa hoy si se omite. Se crea en ELABORADO. El conector guarda en VSIAF y GET conserva las 33 columnas originales.")
+            description = "Completa los datos propios del activo y usa un código nuevo. La oficina, el responsable, el grupo y el auxiliar se toman del último activo registrado, como hasta ahora. FechaAdquisicion usa hoy si se omite. Se crea en ELABORADO. Para cambiar el nombre de una persona usa PUT /api/responsables/{id}; para cambiar el nombre de una oficina usa PUT /api/oficinas/{id}. El conector guarda el activo en VSIAF y GET conserva las 33 columnas originales.")
     public ResponseEntity<?> crear(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(schema = @Schema(implementation = CamposEditablesActivo.Nuevo.class),
                     examples = @ExampleObject(value = CamposEditablesActivo.EJEMPLO_CREAR)))
@@ -110,7 +110,7 @@ public class ActivoController {
     @ApiResponse(responseCode = "200", description = "Activo modificado", content = @Content(schema = @Schema(implementation = ResumenActivo.class)))
     @Transactional
     @Operation(summary = "Modificar un activo",
-            description = "Introduce el código en la URL. El ejemplo muestra todos los campos editables; elimina del JSON los que no quieras cambiar. Los campos omitidos conservan su valor. Usa responsableId o responsable; si envías ambos deben coincidir y pertenecer a oficinaId. Consulta oficinas y responsables en sus GET. Si cambias grupo, usa sus valores de depreciar y actualizar de GET /api/grupos. El activo debe estar en ELABORADO y los cambios se guardan en VSIAF mediante el conector.")
+            description = "Introduce el código en la URL y cambia los datos propios del activo. Elimina del JSON los campos que no quieras cambiar: conservarán su valor. La oficina, el responsable, el grupo, el auxiliar y sus reglas contables se conservan. Para cambiar el nombre de una persona usa PUT /api/responsables/{id}; para cambiar el nombre de una oficina usa PUT /api/oficinas/{id}. El activo debe estar en ELABORADO. El conector guarda los cambios en VSIAF.")
     public Object modificar(@Parameter(example = "PROY-002") @PathVariable String codigo,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(schema = @Schema(implementation = CamposEditablesActivo.class),
                     examples = @ExampleObject(value = CamposEditablesActivo.EJEMPLO_MODIFICAR)))
